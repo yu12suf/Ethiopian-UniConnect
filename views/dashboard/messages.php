@@ -1,0 +1,55 @@
+<?php
+require_once '../../includes/init.php';
+requireLogin();
+
+$user = new User();
+$message = new Message();
+
+$userId = $user->getCurrentUserId();
+$conversations = $message->getUserConversations($userId);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages - UniConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../../assets/css/style.css">
+</head>
+<body>
+    <?php include '../../includes/navbar.php'; ?>
+    
+    <div class="container my-5">
+        <h2 class="mb-4"><i class="bi bi-chat-dots"></i> Messages</h2>
+        
+        <?php if (empty($conversations)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No messages yet. Start by sending a request for a book!
+            </div>
+        <?php else: ?>
+            <div class="card shadow">
+                <div class="list-group list-group-flush">
+                    <?php foreach ($conversations as $conv): ?>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1"><?= htmlspecialchars($conv['other_user_name']) ?></h6>
+                                <small class="text-muted"><?= timeAgo($conv['last_message_time']) ?></small>
+                            </div>
+                            <?php if ($conv['book_title']): ?>
+                                <p class="mb-1 small text-muted">Re: <?= htmlspecialchars($conv['book_title']) ?></p>
+                            <?php endif; ?>
+                            <p class="mb-0 text-truncate"><?= htmlspecialchars($conv['last_message']) ?></p>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    
+    <?php include '../../includes/footer.php'; ?>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
