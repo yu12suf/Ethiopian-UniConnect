@@ -1,0 +1,30 @@
+Project Title: UniConnect – University Book & Material Exchange Platform
+1. Objectives of the Project
+The main objective of the UniConnect project is to build a web-based system that connects university
+students for the exchange, borrowing, donation, and sale of academic books and materials within their
+campus community. The system aims to provide an efficient, secure, and organized alternative to
+informal sharing methods such as Telegram groups or personal contacts. Through this project, various core PHP concepts are demonstrated, including Object-Oriented
+Programming (OOP) for system structure, MySQL database access for storing user and material data, sessions and cookies for secure authentication and persistent login, and file handling for managing
+uploaded book images and documents. Specific Objectives
+1. To develop a user-friendly web application that allows students to list and share
+educational resources. 2. To implement secure user registration and login functionalities using sessions and
+cookies. 3. To provide features for uploading, managing, and downloading book and material files. 4. To enable users to search, filter, and request materials efficiently. 5. To allow administrators to moderate listings, manage users, and generate reports. 6. To promote resource reuse, reduce costs, and foster collaboration among university
+students. 2. Functionalities of the Project
+A. User Functionalities
+1. User Registration & Login
+ Students create accounts using their university (.edu.et) emails.  Secure authentication is implemented using sessions and cookies for “Remember Me”
+functionality.  Users can update their profile details such as name, department, and contact
+information. 2. Upload and Manage Books/Materials
+ Users can upload book details (title, author, department, course, condition, type of
+exchange, and image).  Uploaded materials are stored using PHP file handling and linked to the database.  Users can edit or delete their listings as needed. 3. Search and Filter Materials
+ Students can search for books by title, author, course, or department.  Filters allow sorting by exchange type (borrow, buy, donate) or material condition. 4. Request and Communication System
+ Users can send requests to book owners.  Built-in chat or message feature helps them coordinate exchanges or pickups. 5. Manage Listings and Exchanges
+ Users can view their active, borrowed, or completed listings.  Option to mark items as “Unavailable” after successful exchange. B. Admin Functionalities
+1. Approve or Block Listings
+ Admins can approve new uploads before they appear publicly.  Unrelated or duplicate posts can be blocked or removed. 2. Manage Users
+ Admins can view all registered users, monitor activity, and deactivate suspicious
+accounts. 3. Generate Reports
+ View reports such as number of exchanges, most requested subjects, and user
+engagement statistics. 4. System Maintenance
+ Ensure smooth operation of the database and manage backups of uploaded files and
+user data.
