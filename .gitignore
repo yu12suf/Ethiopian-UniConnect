@@ -1,0 +1,32 @@
+# PHP
+vendor/
+composer.lock
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/books/*
+uploads/profiles/*
+!uploads/books/.gitkeep
+!uploads/profiles/.gitkeep
+
+# Environment
+.env
+config/local.php
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
