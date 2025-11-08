@@ -51,28 +51,44 @@ class Book {
     }
     
     /**
-     * Upload book image
+     * Upload book image with secure validation
      */
     private function uploadImage($file) {
-        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        // Allowed MIME types and extensions
+        $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
         
-        if (!in_array($file['type'], $allowedTypes)) {
-            return false;
-        }
-        
+        // Check file size
         if ($file['size'] > MAX_FILE_SIZE) {
             return false;
         }
         
+        // Validate file extension
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($extension, $allowedExtensions)) {
+            return false;
+        }
+        
+        // Verify actual MIME type using finfo (not client-provided type)
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+        
+        if (!in_array($mimeType, $allowedMimeTypes)) {
+            return false;
+        }
+        
+        // Create upload directory if needed
         $uploadDir = __DIR__ . '/../uploads/books/';
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
         
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        // Generate secure filename
         $filename = uniqid('book_') . '.' . $extension;
         $uploadPath = $uploadDir . $filename;
         
+        // Move uploaded file
         if (move_uploaded_file($file['tmp_name'], $uploadPath)) {
             return 'uploads/books/' . $filename;
         }

@@ -4,15 +4,15 @@
  * Loads configuration, starts session, and includes all classes
  */
 
+// Load configuration first (before using constants)
+require_once __DIR__ . '/../config/database.php';
+
 // Start session with custom settings
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_lifetime', SESSION_LIFETIME);
 
 session_start();
-
-// Load configuration
-require_once __DIR__ . '/../config/database.php';
 
 // Autoload classes
 spl_autoload_register(function ($class) {
