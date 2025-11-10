@@ -20,13 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'exchange_type' => $_POST['exchange_type'],
         'price' => $_POST['price'] ?? null
     ];
-    
+
     if (empty($data['title']) || empty($data['author']) || empty($data['course'])) {
         $errors[] = 'Title, author, and course are required';
     }
-    
+
     if (empty($errors)) {
-        $result = $book->createListing($data, $_FILES['image'] ?? null);
+        $image = $_FILES['image'] ?? null;
+        $bookFile = $_FILES['book_file'] ?? null;
+        $result = $book->createListing($data, $image);
         if ($result['success']) {
             $success = $result['message'];
         } else {
@@ -37,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,9 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
+
 <body>
     <?php include '../../includes/navbar.php'; ?>
-    
+
     <div class="container my-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
@@ -63,14 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
-                        
+
                         <?php if ($success): ?>
                             <div class="alert alert-success">
                                 <?= htmlspecialchars($success) ?>
                                 <a href="index.php" class="alert-link">Go to dashboard</a>
                             </div>
                         <?php endif; ?>
-                        
+
                         <form method="POST" enctype="multipart/form-data">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -82,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <input type="text" name="author" class="form-control" required>
                                 </div>
                             </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label class="form-label">Department *</label>
@@ -102,12 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <input type="text" name="course" class="form-control" placeholder="e.g., Data Structures" required>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
                                 <textarea name="description" class="form-control" rows="3" placeholder="Additional information about the book"></textarea>
                             </div>
-                            
+
                             <div class="row">
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Condition *</label>
@@ -132,13 +136,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <input type="number" name="price" class="form-control" step="0.01" min="0">
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="form-label">Book Image</label>
+                                <label class="form-label">Book Image (optional)</label>
                                 <input type="file" name="image" class="form-control" accept="image/*">
                                 <small class="text-muted">Max size: 5MB. Supported formats: JPG, PNG, GIF</small>
                             </div>
-                            
+
+                            <div class="mb-3">
+                                <label class="form-label">Book File (PDF/DOC/DOCX) (optional)</label>
+                                <input type="file" name="book_file" class="form-control" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                                <small class="text-muted">Max size: 10MB. Supported formats: PDF, DOC, DOCX</small>
+                            </div>
+
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary">Upload Book</button>
                                 <a href="index.php" class="btn btn-outline-secondary">Cancel</a>
@@ -149,9 +159,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    
+
     <?php include '../../includes/footer.php'; ?>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.getElementById('exchangeType').addEventListener('change', function() {
@@ -164,4 +174,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
     </script>
 </body>
+
 </html>

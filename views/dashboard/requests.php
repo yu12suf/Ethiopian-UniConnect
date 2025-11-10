@@ -8,6 +8,7 @@ $request = new Request();
 $userId = $user->getCurrentUserId();
 $receivedRequests = $request->getReceivedRequests($userId);
 $sentRequests = $request->getSentRequests($userId);
+$db = Database::getInstance()->getConnection();
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
@@ -19,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,12 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
+
 <body>
     <?php include '../../includes/navbar.php'; ?>
-    
+
     <div class="container my-5">
         <h2 class="mb-4">Book Requests</h2>
-        
+
         <ul class="nav nav-tabs mb-4" role="tablist">
             <li class="nav-item">
                 <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#received">
@@ -45,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                 </button>
             </li>
         </ul>
-        
+
         <div class="tab-content">
             <!-- Received Requests -->
             <div class="tab-pane fade show active" id="received">
@@ -65,12 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                         <?php endif; ?>
                                         <p class="mb-2"><strong>Message:</strong> <?= nl2br(htmlspecialchars($req['message'])) ?></p>
                                         <p class="text-muted small"><i class="bi bi-clock"></i> <?= timeAgo($req['created_at']) ?></p>
+                                        <?php
+                                        // Show any uploaded proof for owners
+                                        $txCheck = Database::getInstance()->getConnection()->prepare('SELECT * FROM transactions WHERE request_id = ? LIMIT 1');
+                                        $txCheck->execute([$req['id']]);
+                                        $txdata = $txCheck->fetch();
+                                        if ($txdata && !empty($txdata['proof_path'])): ?>
+                                            <p class="mt-2"><strong>Payment Proof:</strong> <a href="<?= site_url($txdata['proof_path']) ?>" target="_blank">View proof</a></p>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="col-md-4 text-end">
                                         <span class="status-badge status-<?= $req['status'] ?> d-block mb-2">
                                             <?= ucfirst($req['status']) ?>
                                         </span>
-                                        
+
                                         <?php if ($req['status'] === 'pending'): ?>
                                             <form method="POST" class="d-inline">
                                                 <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
@@ -83,6 +94,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                                 <button type="submit" class="btn btn-danger btn-sm">Reject</button>
                                             </form>
                                         <?php endif; ?>
+
+                                        <?php
+                                        // If request is accepted and book is for sale, allow owner to mark transaction completed
+                                        $bookExchange = $req['exchange_type'] ?? null;
+                                        if ($req['status'] === 'accepted' && $bookExchange === 'buy'): ?>
+                                            <?php
+                                            // Use the transaction data (if any) fetched earlier in the left column
+                                            $canComplete = isset($txdata) && !empty($txdata['proof_path']);
+                                            ?>
+                                            <form method="POST" class="d-inline mt-2">
+                                                <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                                <input type="hidden" name="status" value="completed">
+                                                <button type="submit" class="btn btn-outline-primary btn-sm" <?= $canComplete ? '' : 'disabled' ?>>Mark as Paid / Complete Transaction</button>
+                                            </form>
+                                            <?php if (!$canComplete): ?>
+                                                <div class="small text-muted mt-1">No payment proof uploaded yet.</div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
@@ -90,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
-            
+
             <!-- Sent Requests -->
             <div class="tab-pane fade" id="sent">
                 <?php if (empty($sentRequests)): ?>
@@ -110,11 +139,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                         <p class="mb-2"><strong>To:</strong> <?= htmlspecialchars($req['owner_name']) ?></p>
                                         <p class="mb-2"><strong>Your Message:</strong> <?= nl2br(htmlspecialchars($req['message'])) ?></p>
                                         <p class="text-muted small"><i class="bi bi-clock"></i> <?= timeAgo($req['created_at']) ?></p>
-                                        
+
                                         <span class="status-badge status-<?= $req['status'] ?>">
                                             <?= ucfirst($req['status']) ?>
                                         </span>
-                                        
+
                                         <?php if ($req['status'] === 'accepted'): ?>
                                             <div class="alert alert-success mt-2">
                                                 <strong>Contact Info:</strong><br>
@@ -123,6 +152,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                                     Phone: <?= htmlspecialchars($req['owner_phone']) ?>
                                                 <?php endif; ?>
                                             </div>
+
+                                            <?php if (($req['exchange_type'] ?? '') === 'buy'): ?>
+                                                <?php
+                                                $txStmt = $db->prepare('SELECT * FROM transactions WHERE request_id = ? LIMIT 1');
+                                                $txStmt->execute([$req['id']]);
+                                                $tx = $txStmt->fetch();
+                                                ?>
+                                                <div class="mt-2">
+                                                    <?php if (!$tx): ?>
+                                                        <div class="alert alert-warning">Waiting for owner to initialize the transaction.</div>
+                                                    <?php else: ?>
+                                                        <p><strong>Transaction status:</strong> <?= htmlspecialchars($tx['status']) ?></p>
+                                                        <?php if (!empty($tx['proof_path'])): ?>
+                                                            <p>Proof uploaded: <a href="<?= site_url($tx['proof_path']) ?>" target="_blank">View proof</a></p>
+                                                        <?php endif; ?>
+
+                                                        <?php if ($tx['status'] === 'pending'): ?>
+                                                            <form method="POST" action="<?= site_url('views/dashboard/upload_proof.php') ?>" enctype="multipart/form-data" class="mt-2">
+                                                                <input type="hidden" name="transaction_id" value="<?= $tx['id'] ?>">
+                                                                <div class="input-group">
+                                                                    <input type="file" name="proof" accept="image/*,application/pdf" class="form-control" required>
+                                                                    <button class="btn btn-primary" type="submit">Upload Proof</button>
+                                                                </div>
+                                                            </form>
+                                                        <?php elseif ($tx['status'] === 'proof_uploaded'): ?>
+                                                            <div class="alert alert-info">Payment proof uploaded. Waiting for owner verification.</div>
+                                                        <?php elseif ($tx['status'] === 'completed'): ?>
+                                                            <div class="alert alert-success">Payment completed. You can now <a href="<?= site_url('views/public/book_detail.php?id=' . $req['book_id']) ?>">view/download the book</a>.</div>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -133,9 +194,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
             </div>
         </div>
     </div>
-    
+
     <?php include '../../includes/footer.php'; ?>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

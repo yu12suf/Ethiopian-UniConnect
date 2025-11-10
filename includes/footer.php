@@ -8,9 +8,14 @@
             <div class="col-md-4">
                 <h6>Quick Links</h6>
                 <ul class="list-unstyled">
-                    <li><a href="/index.php" class="text-white-50 text-decoration-none">Browse Books</a></li>
-                    <li><a href="/views/auth/register.php" class="text-white-50 text-decoration-none">Register</a></li>
-                    <li><a href="/views/auth/login.php" class="text-white-50 text-decoration-none">Login</a></li>
+                    <li><a href="<?= site_url('index.php') ?>" class="text-white-50 text-decoration-none">Browse Books</a></li>
+                    <?php if (!empty($user) && $user->isLoggedIn()): ?>
+                        <li><a href="<?= site_url('views/dashboard/index.php') ?>" class="text-white-50 text-decoration-none">Dashboard</a></li>
+                        <li><a href="<?= site_url('views/auth/logout.php') ?>" class="text-white-50 text-decoration-none">Logout</a></li>
+                    <?php else: ?>
+                        <li><a href="<?= site_url('views/auth/register.php') ?>" class="text-white-50 text-decoration-none">Register</a></li>
+                        <li><a href="<?= site_url('views/auth/login.php') ?>" class="text-white-50 text-decoration-none">Login</a></li>
+                    <?php endif; ?>
                 </ul>
             </div>
             <div class="col-md-4">

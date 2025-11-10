@@ -10,18 +10,19 @@ $users = $admin->getAllUsers();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $userId = $_POST['user_id'];
     $action = $_POST['action'];
-    
+
     if ($action === 'activate') {
         $admin->activateUser($userId);
     } elseif ($action === 'deactivate') {
         $admin->deactivateUser($userId);
     }
-    
+
     redirect('/views/admin/users.php');
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,12 +31,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
+
 <body>
     <?php include '../../includes/navbar.php'; ?>
-    
+
     <div class="container my-5">
         <h2 class="mb-4"><i class="bi bi-people"></i> User Management</h2>
-        
+
         <div class="card shadow">
             <div class="card-body">
                 <div class="table-responsive">
@@ -76,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                     <button type="submit" class="btn btn-sm btn-success">Activate</button>
                                                 <?php endif; ?>
                                             </form>
+                                        <?php else: ?>
+                                            <span class="text-muted small">No actions available</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -85,14 +89,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
         </div>
-        
+
         <div class="mt-3">
             <a href="index.php" class="btn btn-secondary">Back to Admin Dashboard</a>
         </div>
     </div>
-    
+
     <?php include '../../includes/footer.php'; ?>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
