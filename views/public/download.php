@@ -34,22 +34,22 @@ if (empty($book['file_path'])) {
 
 // Enforce access policy by exchange type:
 // - donate: public (no login required)
-// - buy: only owner/admin or requester with an accepted request
-// - borrow: same as buy (requires accepted request or owner/admin)
+// - buy: only owner/admin or requester with completed transaction
+// - borrow: only owner/admin or requester with accepted request and within deadline
 
 $exchange = $book['exchange_type'] ?? 'donate';
 
-// For donate files, allow public access
-if ($exchange !== 'donate') {
+// For donate files, allow public access (no login required)
+if ($exchange === 'donate') {
+    $allowed = true;
+} elseif ($exchange === 'buy') {
+    // For buy: only owner/admin or requester with completed transaction
     $user = new User();
     if (!$user->isLoggedIn()) {
-        // redirect to login (site-aware)
         redirect('/views/auth/login.php');
     }
 
     $currentUserId = $user->getCurrentUserId();
-
-    // Owner or admin may always access
     $isOwner = ($currentUserId == $book['user_id']);
     $isAdmin = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin');
 
@@ -57,7 +57,42 @@ if ($exchange !== 'donate') {
     if ($isOwner || $isAdmin) {
         $allowed = true;
     } else {
-        // Check if the user has an accepted request for this book
+        // Check if the user has a verified payment proof for this book
+        $proofStmt = $db->prepare("
+            SELECT pp.id FROM payment_proofs pp
+            JOIN requests r ON pp.request_id = r.id
+            WHERE r.book_id = ? AND r.requester_id = ? AND pp.verified = 1
+            LIMIT 1
+        ");
+        $proofStmt->execute([$bookId, $currentUserId]);
+        if ($proofStmt->fetch()) {
+            $allowed = true;
+        }
+    }
+
+    if (!$allowed) {
+        http_response_code(403);
+        echo '<h3>Access denied</h3>';
+        echo '<p>This book is for sale. Complete the payment to access the file.';
+        echo ' <a href="' . site_url('views/public/pay.php?book_id=' . $bookId) . '">Pay Now</a>.</p>';
+        exit;
+    }
+} elseif ($exchange === 'borrow') {
+    // For borrow: only owner/admin or requester with accepted request and within deadline
+    $user = new User();
+    if (!$user->isLoggedIn()) {
+        redirect('/views/auth/login.php');
+    }
+
+    $currentUserId = $user->getCurrentUserId();
+    $isOwner = ($currentUserId == $book['user_id']);
+    $isAdmin = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin');
+
+    $allowed = false;
+    if ($isOwner || $isAdmin) {
+        $allowed = true;
+    } else {
+        // Check if the user has an accepted request for this book (includes deadline check)
         $req = new Request();
         if ($req->isRequestAccepted($currentUserId, $bookId)) {
             $allowed = true;
@@ -65,13 +100,19 @@ if ($exchange !== 'donate') {
     }
 
     if (!$allowed) {
-        // Deny access with a friendly message and link back to book
         http_response_code(403);
         echo '<h3>Access denied</h3>';
-        echo '<p>This file is only available after the transaction/request is approved by the owner.';
-        echo ' To request access, please <a href="' . site_url('views/public/book_detail.php?id=' . $bookId) . '">send a request for this book</a>.</p>';
+        echo '<p>This book is available for borrowing. Send a request to the owner to access the file.';
+        echo ' <a href="' . site_url('views/public/book_detail.php?id=' . $bookId) . '">Send Request</a>.</p>';
         exit;
     }
+} else {
+    // Unknown exchange type, deny access
+    http_response_code(403);
+    echo '<h3>Access denied</h3>';
+    echo '<p>This file is only available after the transaction/request is approved by the owner.';
+    echo ' To request access, please <a href="' . site_url('views/public/book_detail.php?id=' . $bookId) . '">send a request for this book</a>.</p>';
+    exit;
 }
 
 // Build absolute path to file and validate

@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'department' => sanitize($_POST['department']),
         'phone' => sanitize($_POST['phone'])
     ];
-    
+
     // Validation
     if (empty($data['full_name'])) {
         $errors[] = 'Full name is required';
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($data['department'])) {
         $errors[] = 'Department is required';
     }
-    
+
     if (empty($errors)) {
         $result = $user->register($data);
         if ($result['success']) {
@@ -52,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -60,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
+
 <body class="bg-light">
     <div class="container">
         <div class="row justify-content-center mt-5">
@@ -70,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <h2 class="fw-bold"><i class="bi bi-book-half"></i> UniConnect</h2>
                             <p class="text-muted">Create your account</p>
                         </div>
-                        
+
                         <?php if (!empty($errors)): ?>
                             <div class="alert alert-danger">
                                 <ul class="mb-0">
@@ -80,26 +82,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </ul>
                             </div>
                         <?php endif; ?>
-                        
+
                         <?php if ($success): ?>
                             <div class="alert alert-success">
                                 <?= htmlspecialchars($success) ?>
                                 <a href="login.php" class="alert-link">Login now</a>
                             </div>
                         <?php endif; ?>
-                        
+
                         <form method="POST" action="">
                             <div class="mb-3">
                                 <label class="form-label">Full Name</label>
                                 <input type="text" name="full_name" class="form-control" value="<?= htmlspecialchars($_POST['full_name'] ?? '') ?>" required>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">University Email (.edu.et)</label>
                                 <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
                                 <small class="form-text text-muted">Must be a valid university email ending with .edu.et</small>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Department</label>
                                 <select name="department" class="form-select" required>
@@ -114,25 +116,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <option value="Other">Other</option>
                                 </select>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Phone Number</label>
                                 <input type="tel" name="phone" class="form-control" value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>" placeholder="0911234567">
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Password</label>
                                 <input type="password" name="password" class="form-control" required>
                             </div>
-                            
+
                             <div class="mb-4">
                                 <label class="form-label">Confirm Password</label>
                                 <input type="password" name="confirm_password" class="form-control" required>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-primary w-100">Register</button>
                         </form>
-                        
+
                         <div class="text-center mt-3">
                             <p>Already have an account? <a href="login.php">Login here</a></p>
                         </div>
@@ -141,7 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

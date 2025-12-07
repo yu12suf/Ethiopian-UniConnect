@@ -14,7 +14,8 @@ $db = Database::getInstance()->getConnection();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     $requestId = $_POST['request_id'];
     $status = $_POST['status'];
-    $request->updateRequestStatus($requestId, $userId, $status);
+    $borrowDays = $_POST['borrow_days'] ?? null;
+    $request->updateRequestStatus($requestId, $userId, $status, $borrowDays);
     redirect('/views/dashboard/requests.php');
 }
 ?>
@@ -67,6 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                             <p class="mb-2"><strong>Phone:</strong> <?= htmlspecialchars($req['requester_phone']) ?></p>
                                         <?php endif; ?>
                                         <p class="mb-2"><strong>Message:</strong> <?= nl2br(htmlspecialchars($req['message'])) ?></p>
+                                        <?php if (($req['exchange_type'] ?? '') === 'borrow' && !empty($req['requested_borrow_days'])): ?>
+                                            <p class="mb-2"><strong>Requested Borrow Period:</strong> <?= $req['requested_borrow_days'] ?> days</p>
+                                        <?php endif; ?>
                                         <p class="text-muted small"><i class="bi bi-clock"></i> <?= timeAgo($req['created_at']) ?></p>
                                         <?php
                                         // Show any uploaded proof for owners
@@ -78,16 +82,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                         <?php endif; ?>
                                     </div>
                                     <div class="col-md-4 text-end">
+                                        <?php
+                                        $statusLabel = '';
+                                        switch ($req['status']) {
+                                            case 'pending':
+                                                $statusLabel = 'Pending';
+                                                break;
+                                            case 'accepted':
+                                                $statusLabel = 'Accepted';
+                                                break;
+                                            case 'rejected':
+                                                $statusLabel = 'Rejected';
+                                                break;
+                                            case 'cancelled':
+                                                $statusLabel = 'Cancelled';
+                                                break;
+                                            case 'completed':
+                                                $statusLabel = 'Completed';
+                                                break;
+                                            default:
+                                                $statusLabel = ucfirst($req['status']); // Fallback
+                                                break;
+                                        }
+                                        ?>
                                         <span class="status-badge status-<?= $req['status'] ?> d-block mb-2">
-                                            <?= ucfirst($req['status']) ?>
+                                            <?= $statusLabel ?>
                                         </span>
 
                                         <?php if ($req['status'] === 'pending'): ?>
-                                            <form method="POST" class="d-inline">
-                                                <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                                                <input type="hidden" name="status" value="accepted">
-                                                <button type="submit" class="btn btn-success btn-sm">Accept</button>
-                                            </form>
+                                            <?php if ($req['exchange_type'] === 'borrow'): ?>
+                                                <form method="POST" class="d-inline">
+                                                    <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                                    <input type="hidden" name="status" value="accepted">
+                                                    <input type="number" name="borrow_days" min="1" max="30" placeholder="Days" class="form-control form-control-sm d-inline w-auto" required>
+                                                    <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                                                </form>
+                                            <?php else: ?>
+                                                <form method="POST" class="d-inline">
+                                                    <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                                    <input type="hidden" name="status" value="accepted">
+                                                    <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                                                </form>
+                                            <?php endif; ?>
                                             <form method="POST" class="d-inline">
                                                 <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
                                                 <input type="hidden" name="status" value="rejected">
@@ -111,6 +147,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                             <?php if (!$canComplete): ?>
                                                 <div class="small text-muted mt-1">No payment proof uploaded yet.</div>
                                             <?php endif; ?>
+                                        <?php elseif ($req['status'] === 'completed' && $bookExchange === 'buy' && isset($txdata['created_at'])): ?>
+                                            <div class="alert alert-success mt-2">
+                                                You sold this book on <?= formatDate($txdata['created_at']) ?>.
+                                            </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -140,16 +180,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                         <p class="mb-2"><strong>Your Message:</strong> <?= nl2br(htmlspecialchars($req['message'])) ?></p>
                                         <p class="text-muted small"><i class="bi bi-clock"></i> <?= timeAgo($req['created_at']) ?></p>
 
+                                        <?php
+                                        $statusLabel = '';
+                                        switch ($req['status']) {
+                                            case 'pending':
+                                                $statusLabel = 'Pending';
+                                                break;
+                                            case 'accepted':
+                                                $statusLabel = 'Accepted';
+                                                break;
+                                            case 'rejected':
+                                                $statusLabel = 'Rejected';
+                                                break;
+                                            case 'cancelled':
+                                                $statusLabel = 'Cancelled';
+                                                break;
+                                            case 'completed':
+                                                $statusLabel = 'Completed';
+                                                break;
+                                            default:
+                                                $statusLabel = ucfirst($req['status']); // Fallback
+                                                break;
+                                        }
+                                        ?>
                                         <span class="status-badge status-<?= $req['status'] ?>">
-                                            <?= ucfirst($req['status']) ?>
+                                            <?= $statusLabel ?>
                                         </span>
 
-                                        <?php if ($req['status'] === 'accepted'): ?>
+                                        <?php if ($req['status'] === 'accepted' || $req['status'] === 'completed'): ?>
                                             <div class="alert alert-success mt-2">
                                                 <strong>Contact Info:</strong><br>
                                                 Email: <?= htmlspecialchars($req['owner_email']) ?><br>
                                                 <?php if ($req['owner_phone']): ?>
                                                     Phone: <?= htmlspecialchars($req['owner_phone']) ?>
+                                                <?php endif; ?>
+                                                <?php if (($req['exchange_type'] ?? '') === 'borrow' && !empty($req['borrow_deadline'])): ?>
+                                                    <br><strong>Borrow Period:</strong> Until <?= date('M d, Y', strtotime($req['borrow_deadline'])) ?> (<?= ceil((strtotime($req['borrow_deadline']) - time()) / (60 * 60 * 24)) ?> days remaining)
                                                 <?php endif; ?>
                                             </div>
 
@@ -179,7 +245,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
                                                         <?php elseif ($tx['status'] === 'proof_uploaded'): ?>
                                                             <div class="alert alert-info">Payment proof uploaded. Waiting for owner verification.</div>
                                                         <?php elseif ($tx['status'] === 'completed'): ?>
-                                                            <div class="alert alert-success">Payment completed. You can now <a href="<?= site_url('views/public/book_detail.php?id=' . $req['book_id']) ?>">view/download the book</a>.</div>
+                                                            <div class="alert alert-success">
+                                                                Payment completed. You bought this book on <?= formatDate($tx['created_at']) ?>.
+                                                                You can now <a href="<?= site_url('views/public/book_detail.php?id=' . $req['book_id']) ?>">view/download the book</a>.
+                                                            </div>
                                                         <?php endif; ?>
                                                     <?php endif; ?>
                                                 </div>

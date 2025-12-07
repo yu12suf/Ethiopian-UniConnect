@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <form method="POST" action="">
                             <div class="mb-3">
                                 <label class="form-label">Email</label>
-                                <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required autofocus>
+                                <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required>
                             </div>
 
                             <div class="mb-3">
@@ -69,9 +69,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <input type="password" name="password" class="form-control" required>
                             </div>
 
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" name="remember" class="form-check-input" id="remember">
-                                <label class="form-check-label" for="remember">Remember me for 30 days</label>
+                            <div class="mb-3 form-check d-flex justify-content-between align-items-center">
+                                <div>
+                                    <input type="checkbox" name="remember" class="form-check-input" id="remember">
+                                    <label class="form-check-label" for="remember">Remember me for 30 days</label>
+                                </div>
+                                <a href="forgot_password.php" class="text-decoration-none">Forgot Password?</a>
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100">Login</button>
@@ -79,7 +82,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <div class="text-center mt-3">
                             <p>Don't have an account? <a href="register.php">Register here</a></p>
-                            <a href="<?= site_url('index.php') ?>" class="text-muted small">Back to home</a>
+                            <div class="mt-2">
+                                <a href="<?= site_url('index.php') ?>" class="btn btn-outline-secondary btn-sm">Back to home</a>
+                            </div>
                         </div>
 
                         <hr class="my-4">

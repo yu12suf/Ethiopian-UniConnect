@@ -43,9 +43,8 @@ $conversations = $message->getUserConversations($userId);
                     <?php foreach ($conversations as $conv): ?>
                         <?php
                         $otherId = $conv['other_user_id'];
-                        $bookParam = $conv['book_title'] ? '&book_id=' . urlencode($conv['book_id']) : '';
-                        $convUrl = site_url("views/dashboard/conversation.php?other_user_id={$otherId}{$bookParam}");
-                        $replyUrl = site_url("views/dashboard/conversation.php?other_user_id={$otherId}" . ($conv['book_title'] ? "&book_id={$conv['book_id']}" : ''));
+                        $convUrl = site_url("views/dashboard/conversation.php?other_user_id={$otherId}");
+                        $replyUrl = site_url("views/dashboard/conversation.php?other_user_id={$otherId}");
                         ?>
                         <a href="<?= $convUrl ?>" class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">

@@ -25,4 +25,3 @@ if ($res === false) {
 } else {
     echo "Response:\n" . $res . "\n";
 }
-curl_close($ch);

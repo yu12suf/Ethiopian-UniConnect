@@ -14,14 +14,51 @@ $secret = $cfg['webhook_secret'] ?? '';
 
 $headers = getallheaders();
 $signature = $headers['X-UNICONNECT-SIGN'] ?? $headers['x-uniconnect-sign'] ?? null;
-if ($secret && !$signature) {
+
+// For Chapa webhooks
+$chapaSignature = $headers['x-chapa-signature'] ?? null;
+$stripeSignature = $headers['stripe-signature'] ?? null;
+
+$provider = 'demo';
+if ($chapaSignature) {
+    $provider = 'chapa';
+    // Verify Chapa signature
+    $expectedSignature = hash_hmac('sha256', file_get_contents('php://input'), $cfg['chapa']['secret_key'] ?? '');
+    if ($chapaSignature !== $expectedSignature) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid Chapa signature']);
+        exit;
+    }
+} elseif ($stripeSignature) {
+    $provider = 'stripe';
+    // Verify Stripe signature
+    try {
+        // Load Stripe library if available
+        if (class_exists('\Stripe\Stripe')) {
+            \Stripe\Stripe::setApiKey($cfg['stripe']['secret_key']);
+            $event = \Stripe\Webhook::constructEvent(file_get_contents('php://input'), $stripeSignature, $cfg['stripe']['webhook_secret']);
+        } else {
+            // Fallback for demo - accept signature as valid
+            if ($stripeSignature !== $cfg['stripe']['webhook_secret']) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Invalid Stripe signature']);
+                exit;
+            }
+        }
+    } catch (\UnexpectedValueException $e) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid Stripe payload']);
+        exit;
+    } catch (Exception $e) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid Stripe signature']);
+        exit;
+    }
+} elseif ($secret && !$signature) {
     http_response_code(401);
     echo json_encode(['error' => 'Missing signature']);
     exit;
-}
-
-// validate signature (simple equality for demo)
-if ($secret && $signature !== $secret) {
+} elseif ($secret && $signature !== $secret) {
     http_response_code(403);
     echo json_encode(['error' => 'Invalid signature']);
     exit;
@@ -29,16 +66,48 @@ if ($secret && $signature !== $secret) {
 
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);
-if (!$data) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid JSON']);
-    exit;
-}
 
-$provider = $data['provider'] ?? 'demo';
-$provider_txn_id = $data['provider_txn_id'] ?? null;
-$txnId = isset($data['transaction_id']) ? intval($data['transaction_id']) : null;
-$status = $data['status'] ?? null; // e.g., success, failed, pending
+// Handle Chapa webhook format
+if ($provider === 'chapa') {
+    // Chapa sends data in specific format
+    $chapa_txn_ref = $data['tx_ref'] ?? null;
+    $chapa_status = $data['status'] ?? null;
+
+    // Map Chapa status to our status
+    $status_map = [
+        'success' => 'completed',
+        'successful' => 'completed',
+        'failed' => 'failed',
+        'pending' => 'pending'
+    ];
+
+    $status = $status_map[strtolower($chapa_status)] ?? 'pending';
+    $provider_txn_id = $chapa_txn_ref;
+    $txnId = null; // Will find by provider_txn_id
+} elseif ($provider === 'stripe') {
+    // Handle Stripe webhook
+    $status_map = [
+        'succeeded' => 'completed',
+        'failed' => 'failed',
+        'pending' => 'pending'
+    ];
+    $stripe_status = $data['status'] ?? null;
+    $status = $status_map[strtolower($stripe_status)] ?? 'pending';
+    $provider_txn_id = $data['provider_txn_id'] ?? null;
+    $txnId = isset($data['transaction_id']) ? intval($data['transaction_id']) : null;
+} else {
+    // Demo/other providers
+    if (!$data) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON']);
+        exit;
+    }
+
+    $provider = $data['provider'] ?? 'demo';
+    $provider_txn_id = $data['provider_txn_id'] ?? null;
+    $txnId = isset($data['transaction_id']) ? intval($data['transaction_id']) : null;
+    $status = $data['status'] ?? null; // e.g., success, failed, pending
+}
 
 $db = Database::getInstance()->getConnection();
 

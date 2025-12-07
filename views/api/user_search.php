@@ -12,7 +12,7 @@ if ($q === '') {
 }
 
 $pattern = '%' . str_replace('%', '\\%', $q) . '%';
-$limit = max(1, min(100, $limit)); // clamp to reasonable range
+$limit = max(1, min(100, intval($limit))); // clamp to reasonable range and ensure integer
 $sql = "SELECT id, full_name, email FROM users WHERE status = 'active' AND (full_name LIKE ? OR email LIKE ?) LIMIT ?";
 try {
     $stmt = $db->prepare($sql);

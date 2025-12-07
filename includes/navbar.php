@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container">
         <a class="navbar-brand fw-bold" href="<?= site_url('index.php') ?>">
             <i class="bi bi-book-half"></i> UniConnect
@@ -21,6 +21,29 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= site_url('views/dashboard/requests.php') ?>">Requests</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= site_url('views/dashboard/verify_payments.php') ?>">
+                            Verify Payments
+                            <?php
+                            // Check for pending payment proofs
+                            $db = Database::getInstance()->getConnection();
+                            $pendingProofsStmt = $db->prepare('
+                                SELECT COUNT(DISTINCT r.id) as count
+                                FROM requests r
+                                JOIN books b ON r.book_id = b.id
+                                WHERE b.user_id = ? AND EXISTS (
+                                    SELECT 1 FROM payment_proofs pp
+                                    WHERE pp.request_id = r.id AND pp.verified = 0
+                                )
+                            ');
+                            $pendingProofsStmt->execute([$user->getCurrentUserId()]);
+                            $pendingCount = $pendingProofsStmt->fetch()['count'];
+                            if ($pendingCount > 0):
+                            ?>
+                                <span class="badge bg-warning text-dark"><?= $pendingCount ?></span>
+                            <?php endif; ?>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= site_url('views/dashboard/messages.php') ?>">

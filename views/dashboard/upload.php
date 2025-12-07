@@ -18,11 +18,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'description' => sanitize($_POST['description']),
         'condition' => $_POST['condition'],
         'exchange_type' => $_POST['exchange_type'],
-        'price' => $_POST['price'] ?? null
+        'price' => $_POST['price'] ?? null,
+        'payment_account_1_type' => $_POST['payment_account_1_type'] ?? null,
+        'payment_account_1_number' => $_POST['payment_account_1_number'] ?? null,
+        'payment_account_1_holder' => $_POST['payment_account_1_holder'] ?? null,
+        'payment_account_2_type' => $_POST['payment_account_2_type'] ?? null,
+        'payment_account_2_number' => $_POST['payment_account_2_number'] ?? null,
+        'payment_account_2_holder' => $_POST['payment_account_2_holder'] ?? null,
+        'payment_account_3_type' => $_POST['payment_account_3_type'] ?? null,
+        'payment_account_3_number' => $_POST['payment_account_3_number'] ?? null,
+        'payment_account_3_holder' => $_POST['payment_account_3_holder'] ?? null
     ];
 
-    if (empty($data['title']) || empty($data['author']) || empty($data['course'])) {
-        $errors[] = 'Title, author, and course are required';
+    if (empty($data['title']) || empty($data['author'])) {
+        $errors[] = 'Title and author are required';
+    }
+
+    // Validate payment fields for 'buy' exchange type
+    if ($data['exchange_type'] === 'buy') {
+        $hasAtLeastOneAccount = false;
+        for ($i = 1; $i <= 3; $i++) {
+            if (!empty($data["payment_account_{$i}_type"]) && !empty($data["payment_account_{$i}_number"])) {
+                $hasAtLeastOneAccount = true;
+                break;
+            }
+        }
+        if (!$hasAtLeastOneAccount) {
+            $errors[] = 'At least one payment account is required for books for sale';
+        }
     }
 
     if (empty($errors)) {
@@ -89,21 +112,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Department *</label>
+                                    <label class="form-label">Category *</label>
                                     <select name="department" class="form-select" required>
-                                        <option value="">Select Department</option>
-                                        <option value="Computer Science">Computer Science</option>
-                                        <option value="Engineering">Engineering</option>
-                                        <option value="Medicine">Medicine</option>
-                                        <option value="Business">Business</option>
-                                        <option value="Law">Law</option>
-                                        <option value="Social Sciences">Social Sciences</option>
-                                        <option value="Natural Sciences">Natural Sciences</option>
+                                        <option value="">Select Category</option>
+                                        <optgroup label="Academic Subjects">
+                                            <option value="Computer Science">Computer Science</option>
+                                            <option value="Engineering">Engineering</option>
+                                            <option value="Medicine">Medicine</option>
+                                            <option value="Business">Business</option>
+                                            <option value="Law">Law</option>
+                                            <option value="Social Sciences">Social Sciences</option>
+                                            <option value="Natural Sciences">Natural Sciences</option>
+                                            <option value="Mathematics">Mathematics</option>
+                                            <option value="Languages">Languages</option>
+                                            <option value="Education">Education</option>
+                                            <option value="Arts & Humanities">Arts & Humanities</option>
+                                        </optgroup>
+                                        <optgroup label="General Interest">
+                                            <option value="Fiction">Fiction</option>
+                                            <option value="Non-Fiction">Non-Fiction</option>
+                                            <option value="Biography">Biography</option>
+                                            <option value="Self-Help">Self-Help</option>
+                                            <option value="History">History</option>
+                                            <option value="Science">Science</option>
+                                            <option value="Technology">Technology</option>
+                                            <option value="Health & Wellness">Health & Wellness</option>
+                                            <option value="Cooking">Cooking</option>
+                                            <option value="Travel">Travel</option>
+                                            <option value="Sports">Sports</option>
+                                            <option value="Hobbies">Hobbies</option>
+                                            <option value="Other">Other</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label class="form-label">Course *</label>
-                                    <input type="text" name="course" class="form-control" placeholder="e.g., Data Structures" required>
+                                    <label class="form-label">Course/Topic (Optional)</label>
+                                    <input type="text" name="course" class="form-control" placeholder="e.g., Data Structures, Novel, Cooking Techniques">
+                                    <small class="text-muted">For academic books, specify the course. For general books, you can leave this blank or specify a topic.</small>
                                 </div>
                             </div>
 
@@ -137,6 +182,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </div>
 
+                            <!-- Payment Account Fields (shown only for 'buy' exchange type) -->
+                            <div id="paymentFields" style="display: none;">
+                                <p class="text-muted small">Provide at least one payment account. Buyers can choose which account to use for payment.</p>
+
+                                <!-- Account 1 -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Payment Account 1</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Bank *</label>
+                                                <select name="payment_account_1_type" class="form-select">
+                                                    <option value="">Select Bank</option>
+                                                    <option value="CBE">Commercial Bank of Ethiopia (CBE)</option>
+                                                    <option value="Dashen">Dashen Bank</option>
+                                                    <option value="Awash">Awash International Bank</option>
+                                                    <option value="Wegagen">Wegagen Bank</option>
+                                                    <option value="United">United Bank</option>
+                                                    <option value="Nib">Nib International Bank</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Number *</label>
+                                                <input type="text" name="payment_account_1_number" class="form-control" placeholder="Enter account number">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Holder Name</label>
+                                                <input type="text" name="payment_account_1_holder" class="form-control" placeholder="Account holder name">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Account 2 -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Payment Account 2 (Optional)</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Bank</label>
+                                                <select name="payment_account_2_type" class="form-select">
+                                                    <option value="">Select Bank</option>
+                                                    <option value="CBE">Commercial Bank of Ethiopia (CBE)</option>
+                                                    <option value="Dashen">Dashen Bank</option>
+                                                    <option value="Awash">Awash International Bank</option>
+                                                    <option value="Wegagen">Wegagen Bank</option>
+                                                    <option value="United">United Bank</option>
+                                                    <option value="Nib">Nib International Bank</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Number</label>
+                                                <input type="text" name="payment_account_2_number" class="form-control" placeholder="Enter account number">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Holder Name</label>
+                                                <input type="text" name="payment_account_2_holder" class="form-control" placeholder="Account holder name">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Account 3 -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Payment Account 3 (Optional)</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Bank</label>
+                                                <select name="payment_account_3_type" class="form-select">
+                                                    <option value="">Select Bank</option>
+                                                    <option value="CBE">Commercial Bank of Ethiopia (CBE)</option>
+                                                    <option value="Dashen">Dashen Bank</option>
+                                                    <option value="Awash">Awash International Bank</option>
+                                                    <option value="Wegagen">Wegagen Bank</option>
+                                                    <option value="United">United Bank</option>
+                                                    <option value="Nib">Nib International Bank</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Number</label>
+                                                <input type="text" name="payment_account_3_number" class="form-control" placeholder="Enter account number">
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">Account Holder Name</label>
+                                                <input type="text" name="payment_account_3_holder" class="form-control" placeholder="Account holder name">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <small class="text-muted">Leave account holder name blank if same as your profile name</small>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label">Book Image (optional)</label>
                                 <input type="file" name="image" class="form-control" accept="image/*">
@@ -166,10 +311,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         document.getElementById('exchangeType').addEventListener('change', function() {
             const priceField = document.getElementById('priceField');
+            const paymentFields = document.getElementById('paymentFields');
             if (this.value === 'buy') {
                 priceField.style.display = 'block';
+                paymentFields.style.display = 'block';
             } else {
                 priceField.style.display = 'none';
+                paymentFields.style.display = 'none';
             }
         });
     </script>

@@ -218,21 +218,18 @@ class Message
      */
     public function getConversation($userId1, $userId2, $bookId = null)
     {
-        $sql = "SELECT m.*, 
-                u1.full_name as sender_name, 
-                u2.full_name as receiver_name 
-                FROM messages m 
-                JOIN users u1 ON m.sender_id = u1.id 
-                JOIN users u2 ON m.receiver_id = u2.id 
-                WHERE ((m.sender_id = ? AND m.receiver_id = ?) 
+        $sql = "SELECT m.*,
+                u1.full_name as sender_name,
+                u2.full_name as receiver_name
+                FROM messages m
+                JOIN users u1 ON m.sender_id = u1.id
+                JOIN users u2 ON m.receiver_id = u2.id
+                WHERE ((m.sender_id = ? AND m.receiver_id = ?)
                    OR (m.sender_id = ? AND m.receiver_id = ?))";
 
         $params = [$userId1, $userId2, $userId2, $userId1];
 
-        if ($bookId) {
-            $sql .= " AND m.book_id = ?";
-            $params[] = $bookId;
-        }
+        // Removed book_id filtering to show all messages in conversation
 
         $sql .= " ORDER BY m.created_at ASC";
 
@@ -246,30 +243,38 @@ class Message
      */
     public function getUserConversations($userId)
     {
-        $sql = "SELECT DISTINCT 
-                CASE 
-                    WHEN m.sender_id = ? THEN m.receiver_id 
-                    ELSE m.sender_id 
-                END as other_user_id,
+        $sql = "SELECT
+                other_user_id,
                 u.full_name as other_user_name,
                 b.title as book_title,
                 b.id as book_id,
-                (SELECT message FROM messages m2 
-                 WHERE (m2.sender_id = other_user_id AND m2.receiver_id = ?) 
-                    OR (m2.sender_id = ? AND m2.receiver_id = other_user_id)
+                (SELECT message FROM messages m2
+                 WHERE (m2.sender_id = c.other_user_id AND m2.receiver_id = ?)
+                    OR (m2.sender_id = ? AND m2.receiver_id = c.other_user_id)
                  ORDER BY created_at DESC LIMIT 1) as last_message,
-                (SELECT created_at FROM messages m2 
-                 WHERE (m2.sender_id = other_user_id AND m2.receiver_id = ?) 
-                    OR (m2.sender_id = ? AND m2.receiver_id = other_user_id)
+                (SELECT created_at FROM messages m2
+                 WHERE (m2.sender_id = c.other_user_id AND m2.receiver_id = ?)
+                    OR (m2.sender_id = ? AND m2.receiver_id = c.other_user_id)
                  ORDER BY created_at DESC LIMIT 1) as last_message_time
-                FROM messages m
-                LEFT JOIN users u ON (CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END) = u.id
+                FROM (
+                    SELECT DISTINCT
+                        CASE
+                            WHEN m.sender_id = ? THEN m.receiver_id
+                            ELSE m.sender_id
+                        END as other_user_id,
+                        MAX(m.created_at) as latest_time
+                    FROM messages m
+                    WHERE m.sender_id = ? OR m.receiver_id = ?
+                    GROUP BY other_user_id
+                ) c
+                LEFT JOIN users u ON c.other_user_id = u.id
+                LEFT JOIN messages m ON (m.sender_id = c.other_user_id OR m.receiver_id = c.other_user_id)
+                    AND m.created_at = c.latest_time
                 LEFT JOIN books b ON m.book_id = b.id
-                WHERE m.sender_id = ? OR m.receiver_id = ?
-                ORDER BY last_message_time DESC";
+                ORDER BY c.latest_time DESC";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId, $userId]);
+        $stmt->execute([$userId, $userId, $userId, $userId, $userId, $userId, $userId]);
         return $stmt->fetchAll();
     }
 

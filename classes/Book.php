@@ -15,59 +15,73 @@ class Book
     }
 
     /**
-     * Create new book listing with image upload
-     */
-    public function createListing($data, $imageFile)
-    {
-        // Handle image upload (optional)
-        $imagePath = null;
-        if (!empty($imageFile) && isset($imageFile['error']) && $imageFile['error'] === UPLOAD_ERR_OK) {
-            $imagePath = $this->uploadImage($imageFile);
-            if (!$imagePath) {
-                return ['success' => false, 'message' => 'Image upload failed'];
-            }
-        }
+     /**
+      * Create new book listing with image upload
+      */
+     public function createListing($data, $imageFile)
+     {
+         // Handle image upload (optional)
+         $imagePath = null;
+         if (!empty($imageFile) && isset($imageFile['error']) && $imageFile['error'] === UPLOAD_ERR_OK) {
+             $imagePath = $this->uploadImage($imageFile);
+             if (!$imagePath) {
+                 return ['success' => false, 'message' => 'Image upload failed'];
+             }
+         }
 
-        // Handle book file upload (optional) - support PDF/DOC/DOCX
-        $filePath = null;
-        if (!empty($_FILES['book_file']) && isset($_FILES['book_file']['error']) && $_FILES['book_file']['error'] === UPLOAD_ERR_OK) {
-            $filePath = $this->uploadDocument($_FILES['book_file']);
-            if ($filePath === false) {
-                return ['success' => false, 'message' => 'Book file upload failed'];
-            }
-        }
+         // Handle book file upload (optional) - support PDF/DOC/DOCX
+         $filePath = null;
+         if (!empty($_FILES['book_file']) && isset($_FILES['book_file']['error']) && $_FILES['book_file']['error'] === UPLOAD_ERR_OK) {
+             $filePath = $this->uploadDocument($_FILES['book_file']);
+             if ($filePath === false) {
+                 return ['success' => false, 'message' => 'Book file upload failed'];
+             }
+         }
 
-        // Insert book listing
-        $sql = "INSERT INTO books (user_id, title, author, department, course, description, 
-        condition_type, exchange_type, price, image_path, file_path, status, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())";
+         // Insert book listing with payment accounts
+         $sql = "INSERT INTO books (user_id, title, author, department, course, description,
+         condition_type, exchange_type, price, image_path, file_path,
+         payment_account_1_type, payment_account_1_number, payment_account_1_holder,
+         payment_account_2_type, payment_account_2_number, payment_account_2_holder,
+         payment_account_3_type, payment_account_3_number, payment_account_3_holder,
+         status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())";
 
-        $params = [
-            $data['user_id'],
-            $data['title'],
-            $data['author'],
-            $data['department'],
-            $data['course'],
-            $data['description'],
-            $data['condition'],
-            $data['exchange_type'],
-            $data['price'] ?? null,
-            $imagePath,
-            $filePath
-        ];
+         $params = [
+             $data['user_id'],
+             $data['title'],
+             $data['author'],
+             $data['department'],
+             $data['course'],
+             $data['description'],
+             $data['condition'],
+             $data['exchange_type'],
+             $data['price'] ?? null,
+             $imagePath,
+             $filePath,
+             $data['payment_account_1_type'] ?? null,
+             $data['payment_account_1_number'] ?? null,
+             $data['payment_account_1_holder'] ?? null,
+             $data['payment_account_2_type'] ?? null,
+             $data['payment_account_2_number'] ?? null,
+             $data['payment_account_2_holder'] ?? null,
+             $data['payment_account_3_type'] ?? null,
+             $data['payment_account_3_number'] ?? null,
+             $data['payment_account_3_holder'] ?? null
+         ];
 
-        $stmt = $this->db->prepare($sql);
-        if ($stmt->execute($params)) {
-            return ['success' => true, 'message' => 'Book listing created successfully. Waiting for admin approval.'];
-        }
+         $stmt = $this->db->prepare($sql);
+         if ($stmt->execute($params)) {
+             return ['success' => true, 'message' => 'Book listing created successfully. Waiting for admin approval.'];
+         }
 
-        return ['success' => false, 'message' => 'Failed to create listing'];
-    }
+         return ['success' => false, 'message' => 'Failed to create listing'];
+     }
 
     /**
      * Upload book image with secure validation
      */
-    private function uploadImage($file)
+    public function uploadImage($file)
     {
         // Allowed MIME types and extensions
         $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -114,7 +128,7 @@ class Book
     /**
      * Upload document files (PDF, DOC, DOCX)
      */
-    private function uploadDocument($file)
+    public function uploadDocument($file)
     {
         $allowedMimeTypes = [
             'application/pdf',
@@ -212,14 +226,46 @@ class Book
      */
     public function getBookById($bookId)
     {
-        $sql = "SELECT b.*, u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone 
-                FROM books b 
-                JOIN users u ON b.user_id = u.id 
+        $sql = "SELECT b.*, u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone
+                FROM books b
+                JOIN users u ON b.user_id = u.id
                 WHERE b.id = ?";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$bookId]);
         return $stmt->fetch();
+    }
+
+    /**
+     * Get payment accounts for a book
+     */
+    public function getPaymentAccounts($bookId)
+    {
+        $sql = "SELECT payment_account_1_type, payment_account_1_number, payment_account_1_holder,
+                       payment_account_2_type, payment_account_2_number, payment_account_2_holder,
+                       payment_account_3_type, payment_account_3_number, payment_account_3_holder
+                FROM books WHERE id = ?";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$bookId]);
+        $result = $stmt->fetch();
+
+        if (!$result) {
+            return [];
+        }
+
+        $accounts = [];
+        for ($i = 1; $i <= 3; $i++) {
+            if (!empty($result["payment_account_{$i}_type"]) && !empty($result["payment_account_{$i}_number"])) {
+                $accounts[] = [
+                    'type' => $result["payment_account_{$i}_type"],
+                    'number' => $result["payment_account_{$i}_number"],
+                    'holder' => $result["payment_account_{$i}_holder"] ?? ''
+                ];
+            }
+        }
+
+        return $accounts;
     }
 
     /**
@@ -243,8 +289,11 @@ class Book
             return ['success' => false, 'message' => 'Unauthorized'];
         }
 
-        $sql = "UPDATE books SET title = ?, author = ?, department = ?, course = ?, 
-                description = ?, condition_type = ?, exchange_type = ?, price = ? 
+        $sql = "UPDATE books SET title = ?, author = ?, department = ?, course = ?,
+                description = ?, condition_type = ?, exchange_type = ?, price = ?, image_path = ?, file_path = ?,
+                payment_account_1_type = ?, payment_account_1_number = ?, payment_account_1_holder = ?,
+                payment_account_2_type = ?, payment_account_2_number = ?, payment_account_2_holder = ?,
+                payment_account_3_type = ?, payment_account_3_number = ?, payment_account_3_holder = ?
                 WHERE id = ? AND user_id = ?";
 
         $params = [
@@ -256,6 +305,17 @@ class Book
             $data['condition'],
             $data['exchange_type'],
             $data['price'] ?? null,
+            $data['image_path'] ?? null,
+            $data['file_path'] ?? null,
+            $data['payment_account_1_type'] ?? null,
+            $data['payment_account_1_number'] ?? null,
+            $data['payment_account_1_holder'] ?? null,
+            $data['payment_account_2_type'] ?? null,
+            $data['payment_account_2_number'] ?? null,
+            $data['payment_account_2_holder'] ?? null,
+            $data['payment_account_3_type'] ?? null,
+            $data['payment_account_3_number'] ?? null,
+            $data['payment_account_3_holder'] ?? null,
             $bookId,
             $userId
         ];

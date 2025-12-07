@@ -6,6 +6,9 @@ $book = new Book();
 $request = new Request();
 
 $bookId = $_GET['id'] ?? 0;
+
+// Get payment accounts for this book
+$paymentAccounts = $book->getPaymentAccounts($bookId);
 $bookData = $book->getBookById($bookId);
 
 if (!$bookData || $bookData['status'] !== 'approved') {
@@ -15,15 +18,82 @@ if (!$bookData || $bookData['status'] !== 'approved') {
 $errors = [];
 $success = '';
 
+// Handle payment completion
+if (isset($_GET['payment']) && $_GET['payment'] === 'completed') {
+    if (isset($_GET['demo']) && $_GET['demo'] === 'true') {
+        // Demo payment completion - simulate webhook
+        $txRef = $_GET['tx_ref'] ?? null;
+        if ($txRef) {
+            // Find transaction by tx_ref
+            $db = Database::getInstance()->getConnection();
+            $stmt = $db->prepare('SELECT * FROM transactions WHERE provider_txn_id = ? LIMIT 1');
+            $stmt->execute([$txRef]);
+            $txn = $stmt->fetch();
+
+            if ($txn) {
+                // Update transaction status
+                $upd = $db->prepare('UPDATE transactions SET status = ?, provider = ? WHERE id = ?');
+                $upd->execute(['completed', 'chapa', $txn['id']]);
+
+                // Mark request as completed if exists
+                if (!empty($txn['request_id'])) {
+                    $r = $db->prepare('UPDATE requests SET status = ? WHERE id = ?');
+                    $r->execute(['completed', $txn['request_id']]);
+                }
+
+                $success = 'Payment completed successfully! You can now access the book files.';
+            }
+        }
+    } else {
+        $success = 'Payment completed successfully! You can now access the book files.';
+    }
+}
+
 // Handle request submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
     $message = sanitize($_POST['message']);
-    $result = $request->createRequest($user->getCurrentUserId(), $bookId, $message);
+    $borrowDays = null;
+    $paymentProof = null;
 
-    if ($result['success']) {
-        $success = $result['message'];
-    } else {
-        $errors[] = $result['message'];
+    if ($bookData['exchange_type'] === 'borrow' && isset($_POST['borrow_days'])) {
+        $borrowDays = intval($_POST['borrow_days']);
+        if ($borrowDays < 1 || $borrowDays > 30) {
+            $errors[] = 'Borrow days must be between 1 and 30';
+        }
+    }
+
+    // Handle payment proof upload for 'buy' exchange type
+    if ($bookData['exchange_type'] === 'buy') {
+        if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = 'Payment proof screenshot is required';
+        } else {
+            // Upload payment proof
+            $proofFile = $_FILES['payment_proof'];
+            $uploadDir = __DIR__ . '/../../uploads/transactions/';
+
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0777, true);
+            }
+
+            $filename = uniqid('proof_') . '.' . strtolower(pathinfo($proofFile['name'], PATHINFO_EXTENSION));
+            $uploadPath = $uploadDir . $filename;
+
+            if (move_uploaded_file($proofFile['tmp_name'], $uploadPath)) {
+                $paymentProof = 'uploads/transactions/' . $filename;
+            } else {
+                $errors[] = 'Failed to upload payment proof';
+            }
+        }
+    }
+
+    if (empty($errors)) {
+        $result = $request->createRequest($user->getCurrentUserId(), $bookId, $message, $borrowDays, $paymentProof);
+
+        if ($result['success']) {
+            $success = $result['message'];
+        } else {
+            $errors[] = $result['message'];
+        }
     }
 }
 ?>
@@ -80,13 +150,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
                         <h5>Book Details</h5>
                         <table class="table table-borderless mb-0">
                             <tr>
-                                <td><strong>Department:</strong></td>
+                                <td><strong>Category:</strong></td>
                                 <td><?= htmlspecialchars($bookData['department']) ?></td>
                             </tr>
-                            <tr>
-                                <td><strong>Course:</strong></td>
-                                <td><?= htmlspecialchars($bookData['course']) ?></td>
-                            </tr>
+                            <?php if (!empty($bookData['course'])): ?>
+                                <tr>
+                                    <td><strong>Course/Topic:</strong></td>
+                                    <td><?= htmlspecialchars($bookData['course']) ?></td>
+                                </tr>
+                            <?php endif; ?>
                             <tr>
                                 <td><strong>Condition:</strong></td>
                                 <td><?= ucfirst(str_replace('_', ' ', $bookData['condition_type'])) ?></td>
@@ -114,12 +186,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
                     $exchange = $bookData['exchange_type'];
                     $fileAvailable = false;
                     $accessMessage = '';
+                    $showFileSection = true;
 
                     if ($exchange === 'donate') {
-                        // Public access
+                        // Public access - anyone can view/download donate books
                         $fileAvailable = true;
-                    } else {
-                        // buy or borrow: only owner, admin, or requester with accepted request
+                        $showFileSection = true;
+                    } elseif ($exchange === 'buy') {
+                        // For buy: only owner, admin, or buyer with verified payment proof
+                        $fileAvailable = false;
+                        if ($user->isLoggedIn()) {
+                            $currentId = $user->getCurrentUserId();
+                            if ($currentId == $bookData['user_id'] || (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin')) {
+                                $fileAvailable = true;
+                            } else {
+                                // Check for verified payment proof
+                                $db = Database::getInstance()->getConnection();
+                                $proofStmt = $db->prepare("
+                                    SELECT pp.id FROM payment_proofs pp
+                                    JOIN requests r ON pp.request_id = r.id
+                                    WHERE r.book_id = ? AND r.requester_id = ? AND pp.verified = 1
+                                    LIMIT 1
+                                ");
+                                $proofStmt->execute([$bookData['id'], $currentId]);
+                                if ($proofStmt->fetch()) {
+                                    $fileAvailable = true;
+                                }
+                            }
+                        }
+
+                        if (!$fileAvailable) {
+                            $accessMessage = 'This book is for sale. Complete the payment using one of the accounts shown above, then upload proof for verification to access the files.';
+                        }
+                    } elseif ($exchange === 'borrow') {
+                        // For borrow: only owner, admin, or requester with accepted request and within deadline
                         $fileAvailable = false;
                         if ($user->isLoggedIn()) {
                             $currentId = $user->getCurrentUserId();
@@ -128,35 +228,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
                             } else {
                                 if ((new Request())->isRequestAccepted($currentId, $bookData['id'])) {
                                     $fileAvailable = true;
+                                } else {
+                                    // For borrow, hide file section entirely until request is accepted
+                                    $showFileSection = false;
                                 }
                             }
+                        } else {
+                            // For borrow, hide file section for non-logged-in users
+                            $showFileSection = false;
                         }
 
-                        if (!$fileAvailable) {
-                            if ($exchange === 'buy') {
-                                $accessMessage = 'This book is for sale. Files are available after the purchase/transaction is completed and approved by the owner.';
-                            } else {
-                                $accessMessage = 'This book is set to borrow. Files are available once the owner accepts your borrow request.';
-                            }
+                        if (!$fileAvailable && $showFileSection) {
+                            $accessMessage = 'This book is set to borrow. Files are available once the owner accepts your borrow request.';
                         }
                     }
+
+                    if ($showFileSection):
                     ?>
 
-                    <div class="mb-3">
-                        <?php if ($fileAvailable): ?>
-                            <a href="<?= site_url('views/public/download.php?book_id=' . $bookData['id'] . '&action=view') ?>" class="btn btn-outline-primary me-2" target="_blank">View File</a>
-                            <a href="<?= site_url('views/public/download.php?book_id=' . $bookData['id'] . '&action=download') ?>" class="btn btn-primary">Download File</a>
-                        <?php else: ?>
-                            <div class="alert alert-warning">
-                                <?= htmlspecialchars($accessMessage) ?>
-                                <?php if ($user->isLoggedIn() && $user->getCurrentUserId() != $bookData['user_id']): ?>
-                                    <div class="mt-2">You can <strong>send a request</strong> below to start the transaction.</div>
-                                <?php else: ?>
-                                    <div class="mt-2">Please <a href="<?= site_url('views/auth/login.php') ?>">login</a> to request access.</div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+                        <div class="mb-3">
+                            <?php if ($fileAvailable): ?>
+                                <a href="<?= site_url('views/public/download.php?book_id=' . $bookData['id'] . '&action=view') ?>" class="btn btn-outline-primary me-2" target="_blank">View File</a>
+                                <a href="<?= site_url('views/public/download.php?book_id=' . $bookData['id'] . '&action=download') ?>" class="btn btn-primary">Download File</a>
+                                <?php
+                                // Show borrow deadline if this is a borrow request
+                                if ($exchange === 'borrow' && $user->isLoggedIn()) {
+                                    $currentUserId = $user->getCurrentUserId();
+                                    $deadlineQuery = $db->prepare("SELECT borrow_deadline FROM requests WHERE book_id = ? AND requester_id = ? AND status IN ('accepted', 'completed') LIMIT 1");
+                                    $deadlineQuery->execute([$bookData['id'], $currentUserId]);
+                                    $deadlineResult = $deadlineQuery->fetch();
+                                    if ($deadlineResult && $deadlineResult['borrow_deadline']) {
+                                        $daysRemaining = ceil((strtotime($deadlineResult['borrow_deadline']) - time()) / (60 * 60 * 24));
+                                        echo '<div class="alert alert-info mt-2"><i class="bi bi-clock"></i> Borrow access expires on ' . date('M d, Y', strtotime($deadlineResult['borrow_deadline'])) . ' (' . $daysRemaining . ' days remaining)</div>';
+                                    }
+                                }
+                                ?>
+                            <?php else: ?>
+                                <div class="alert alert-warning">
+                                    <?= htmlspecialchars($accessMessage) ?>
+                                    <?php if ($user->isLoggedIn() && $user->getCurrentUserId() != $bookData['user_id']): ?>
+                                        <?php if ($exchange === 'buy'): ?>
+                                            <?php $cfg = include __DIR__ . '/../../config/payments.php';
+                                            $chapaEnabled = !empty($cfg['chapa']['secret_key']) && strpos($cfg['chapa']['secret_key'], 'CHAPA_SECRET_KEY_HERE') === false;
+                                            $stripeEnabled = !empty($cfg['stripe']['secret_key']) && strpos($cfg['stripe']['secret_key'], 'sk_test_') === 0 && strpos($cfg['stripe']['secret_key'], '...') === false; ?>
+                                            <?php if ($chapaEnabled || $stripeEnabled): ?>
+                                                <div class="mt-2">
+                                                    <a href="<?= site_url('views/public/pay.php?book_id=' . $bookData['id']) ?>" class="btn btn-success">Pay Now</a>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="mt-2">Online payment is disabled. Use the accounts below and upload a screenshot with your request.</div>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <div class="mt-2">You can <strong>send a request</strong> below to start the transaction.</div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="mt-2">Please <a href="<?= site_url('views/auth/login.php') ?>">login</a> to request access.</div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <div class="card">
@@ -173,6 +304,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
                         <?php endif; ?>
                     </div>
                 </div>
+
+                <?php if ($bookData['exchange_type'] === 'buy' && !empty($paymentAccounts)): ?>
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5>Payment Information</h5>
+                            <p class="text-muted small">Choose one of the following accounts to complete your payment:</p>
+                            <div class="row">
+                                <?php foreach ($paymentAccounts as $index => $account): ?>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h6 class="card-title">Account <?= $index + 1 ?></h6>
+                                                <p class="mb-1"><strong>Bank:</strong> <?= htmlspecialchars($account['type']) ?></p>
+                                                <p class="mb-1"><strong>Account Number:</strong> <code><?= htmlspecialchars($account['number']) ?></code></p>
+                                                <?php if (!empty($account['holder'])): ?>
+                                                    <p class="mb-0"><strong>Account Holder:</strong> <?= htmlspecialchars($account['holder']) ?></p>
+                                                <?php else: ?>
+                                                    <p class="mb-0"><strong>Account Holder:</strong> <?= htmlspecialchars($bookData['owner_name']) ?></p>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> After completing the payment, upload a screenshot of the transaction proof below to get access to the book files.
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <?php
                 // Show transaction history for this book (owner and involved parties)
@@ -221,11 +382,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user->isLoggedIn()) {
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" class="mt-3">
+                    <form method="POST" enctype="multipart/form-data" class="mt-3">
                         <div class="mb-3">
-                            <label class="form-label">Send a request message:</label>
+                            <label class="form-label text-primary">Send a request message:</label>
                             <textarea name="message" class="form-control" rows="3" placeholder="Introduce yourself and explain why you need this book" required></textarea>
                         </div>
+                        <?php if ($bookData['exchange_type'] === 'borrow'): ?>
+                            <div class="mb-3">
+                                <label class="form-label">How many days do you want to borrow this book? (1-30 days)</label>
+                                <input type="number" name="borrow_days" class="form-control" min="1" max="30" required>
+                            </div>
+                        <?php elseif ($bookData['exchange_type'] === 'buy'): ?>
+                            <div class="mb-3">
+                                <label class="form-label text-primary">Payment Proof Screenshot *</label>
+                                <input type="file" name="payment_proof" class="form-control" accept="image/*" required>
+                                <small class="text-warning">Upload a screenshot showing the completed payment transaction</small>
+                            </div>
+                        <?php endif; ?>
                         <button type="submit" class="btn btn-primary btn-lg w-100">
                             <i class="bi bi-send"></i> Send Request
                         </button>

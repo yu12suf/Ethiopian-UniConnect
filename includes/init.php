@@ -89,14 +89,29 @@ function site_url($path = '')
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost');
 
+    // Fix for localhost with trailing dot
+    $host = rtrim($host, '.');
+
     $scriptDir = dirname($_SERVER['SCRIPT_NAME']);
     $base = preg_replace('#/views.*$#', '', $scriptDir);
     if ($base === '/') {
         $base = '';
     }
 
-    $url = rtrim($scheme . '://' . $host . $base, '/') . '/' . ltrim($path, '/');
-    return $url;
+    // For localhost, ensure proper port handling
+    if (strpos($host, 'localhost') === 0 && !strpos($host, ':')) {
+        $port = $_SERVER['SERVER_PORT'] ?? 80;
+        if ($port != 80 && $port != 443) {
+            $host .= ':' . $port;
+        }
+    }
+
+    // Build URL properly
+    $baseUrl = $scheme . '://' . $host . $base;
+    if (!empty($path)) {
+        $baseUrl = rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+    }
+    return $baseUrl;
 }
 
 // Helper function to check if user is logged in

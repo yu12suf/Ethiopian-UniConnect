@@ -17,18 +17,47 @@ class Request
     /**
      * Create new request
      */
-    public function createRequest($requesterId, $bookId, $message)
+    public function createRequest($requesterId, $bookId, $message, $borrowDays = null, $paymentProof = null)
     {
-        // Check if request already exists
-        if ($this->requestExists($requesterId, $bookId)) {
-            return ['success' => false, 'message' => 'You have already sent a request for this book'];
+        $existingStmt = $this->db->prepare("SELECT * FROM requests WHERE requester_id = ? AND book_id = ? ORDER BY created_at DESC LIMIT 1");
+        $existingStmt->execute([$requesterId, $bookId]);
+        $existing = $existingStmt->fetch();
+
+        $borrowDeadline = null;
+        if ($borrowDays && is_numeric($borrowDays) && $borrowDays > 0) {
+            $borrowDeadline = date('Y-m-d H:i:s', strtotime("+{$borrowDays} days"));
         }
 
-        $sql = "INSERT INTO requests (requester_id, book_id, message, status, created_at) 
-                VALUES (?, ?, ?, 'pending', NOW())";
+        if ($existing && in_array($existing['status'], ['rejected', 'cancelled'], true)) {
+            $upd = $this->db->prepare("UPDATE requests SET message = ?, status = 'pending', requested_borrow_days = ?, borrow_deadline = ?, updated_at = NOW() WHERE id = ?");
+            if ($upd->execute([$message, $borrowDays, $borrowDeadline, $existing['id']])) {
+                if ($paymentProof) {
+                    $proofSql = "INSERT INTO payment_proofs (request_id, proof_image, uploaded_at) VALUES (?, ?, NOW())";
+                    $proofStmt = $this->db->prepare($proofSql);
+                    $proofStmt->execute([$existing['id'], $paymentProof]);
+                }
+                return ['success' => true, 'message' => 'Your previous request was rigected. It has been resubmitted with your new details.'];
+            }
+            return ['success' => false, 'message' => 'Failed to resubmit your request'];
+        }
+
+
+
+        $sql = "INSERT INTO requests (requester_id, book_id, message, status, requested_borrow_days, borrow_deadline, created_at)
+                VALUES (?, ?, ?, 'pending', ?, ?, NOW())";
 
         $stmt = $this->db->prepare($sql);
-        if ($stmt->execute([$requesterId, $bookId, $message])) {
+        if ($stmt->execute([$requesterId, $bookId, $message, $borrowDays, $borrowDeadline])) {
+            $requestId = $this->db->lastInsertId();
+
+            // Handle payment proof for 'buy' requests
+            if ($paymentProof) {
+                $proofSql = "INSERT INTO payment_proofs (request_id, proof_image, uploaded_at)
+                            VALUES (?, ?, NOW())";
+                $proofStmt = $this->db->prepare($proofSql);
+                $proofStmt->execute([$requestId, $paymentProof]);
+            }
+
             return ['success' => true, 'message' => 'Request sent successfully'];
         }
 
@@ -51,12 +80,12 @@ class Request
      */
     public function getReceivedRequests($userId)
     {
-        $sql = "SELECT r.*, b.title as book_title, b.id as book_id, b.exchange_type, b.price, 
-        u.full_name as requester_name, u.email as requester_email, u.phone as requester_phone 
-        FROM requests r 
-        JOIN books b ON r.book_id = b.id 
-        JOIN users u ON r.requester_id = u.id 
-        WHERE b.user_id = ? 
+        $sql = "SELECT r.*, b.title as book_title, b.id as book_id, b.exchange_type, b.price,
+        u.full_name as requester_name, u.email as requester_email, u.phone as requester_phone
+        FROM requests r
+        JOIN books b ON r.book_id = b.id
+        JOIN users u ON r.requester_id = u.id
+        WHERE b.user_id = ?
         ORDER BY r.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
@@ -69,12 +98,12 @@ class Request
      */
     public function getSentRequests($userId)
     {
-        $sql = "SELECT r.*, b.title as book_title, b.image_path, b.exchange_type, b.price, 
-        u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone 
-        FROM requests r 
-        JOIN books b ON r.book_id = b.id 
-        JOIN users u ON b.user_id = u.id 
-        WHERE r.requester_id = ? 
+        $sql = "SELECT r.*, b.title as book_title, b.image_path, b.exchange_type, b.price,
+        u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone
+        FROM requests r
+        JOIN books b ON r.book_id = b.id
+        JOIN users u ON b.user_id = u.id
+        WHERE r.requester_id = ?
         ORDER BY r.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
@@ -85,11 +114,11 @@ class Request
     /**
      * Update request status
      */
-    public function updateRequestStatus($requestId, $ownerId, $status)
+    public function updateRequestStatus($requestId, $ownerId, $status, $borrowDays = null)
     {
         // Verify the owner is updating their own request
-        $sql = "SELECT b.user_id FROM requests r 
-                JOIN books b ON r.book_id = b.id 
+        $sql = "SELECT b.user_id FROM requests r
+                JOIN books b ON r.book_id = b.id
                 WHERE r.id = ?";
 
         $stmt = $this->db->prepare($sql);
@@ -100,9 +129,20 @@ class Request
             return ['success' => false, 'message' => 'Unauthorized'];
         }
 
-        $sql = "UPDATE requests SET status = ? WHERE id = ?";
-        $stmt = $this->db->prepare($sql);
-        if ($stmt->execute([$status, $requestId])) {
+        // Set borrow deadline if accepting borrow request
+        $updateSql = "UPDATE requests SET status = ?";
+        $params = [$status];
+        if ($status === 'accepted' && $borrowDays && is_numeric($borrowDays) && $borrowDays > 0) {
+            $borrowDeadline = date('Y-m-d H:i:s', strtotime("+{$borrowDays} days"));
+            $updateSql .= ", borrow_deadline = ?";
+            $params[] = $borrowDeadline;
+        }
+        $updateSql .= " WHERE id = ?";
+
+        error_log("Attempting to update request ID: $requestId with status: $status. SQL: $updateSql, Params: " . json_encode(array_merge($params, [$requestId])));
+        $stmt = $this->db->prepare($updateSql);
+        if ($stmt->execute(array_merge($params, [$requestId]))) {
+            error_log("Request ID: $requestId status updated to: $status. Success.");
             // Load request details to use in notifications and transaction handling
             try {
                 $q = "SELECT r.id AS req_id, r.requester_id, r.book_id, r.message AS request_message, r.status AS current_status, b.title AS book_title, b.price, b.exchange_type, u.email AS owner_email, u.full_name AS owner_name, ru.email AS requester_email, ru.full_name AS requester_name FROM requests r JOIN books b ON r.book_id = b.id JOIN users u ON b.user_id = u.id JOIN users ru ON r.requester_id = ru.id WHERE r.id = ? LIMIT 1";
@@ -189,7 +229,7 @@ class Request
     public function isRequestAccepted($requesterId, $bookId)
     {
         // Check request status and book exchange type. For 'buy' we require a completed transaction.
-        $sql = "SELECT r.status, b.exchange_type FROM requests r JOIN books b ON r.book_id = b.id WHERE r.requester_id = ? AND r.book_id = ? LIMIT 1";
+        $sql = "SELECT r.status, r.borrow_deadline, b.exchange_type FROM requests r JOIN books b ON r.book_id = b.id WHERE r.requester_id = ? AND r.book_id = ? LIMIT 1";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([$requesterId, $bookId]);
         $row = $stmt->fetch();
@@ -197,6 +237,7 @@ class Request
 
         $status = $row['status'];
         $exchange = $row['exchange_type'] ?? 'donate';
+        $borrowDeadline = $row['borrow_deadline'];
 
         if ($exchange === 'buy') {
             // For purchases, ensure there's a completed transaction for this request/book/buyer
@@ -205,7 +246,18 @@ class Request
             return $t->fetch() !== false;
         }
 
-        // For donate/borrow, accepted or completed status is sufficient
+        if ($exchange === 'borrow') {
+            // For borrow, check if accepted and deadline not passed
+            if (in_array($status, ['accepted', 'completed'], true)) {
+                if ($borrowDeadline && strtotime($borrowDeadline) < time()) {
+                    return false; // Deadline passed, access revoked
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // For donate, accepted or completed status is sufficient
         return in_array($status, ['accepted', 'completed'], true);
     }
 }
