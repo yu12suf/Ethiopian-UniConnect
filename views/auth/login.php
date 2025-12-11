@@ -89,11 +89,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <hr class="my-4">
 
-                        <div class="alert alert-info small">
-                            <strong>Admin Login:</strong><br>
+                        <!--<div class="alert alert-info small">
+                             <strong>Admin Login:</strong><br>
                             Email: admin@uniconnect.edu.et<br>
-                            Password: admin123
-                        </div>
+                            Password: admin123 
+                        </div>-->
                     </div>
                 </div>
             </div>
