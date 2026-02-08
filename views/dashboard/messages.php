@@ -48,16 +48,16 @@ $conversations = $message->getUserConversations($userId);
                         ?>
                         <a href="<?= $convUrl ?>" class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1"><?= htmlspecialchars($conv['other_user_name']) ?></h6>
-                                <small class="text-muted"><?= timeAgo($conv['last_message_time']) ?></small>
+                                <h6 class="mb-1"><i class="bi bi-person-circle me-2"></i><?= htmlspecialchars($conv['other_user_name']) ?></h6>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i><?= timeAgo($conv['last_message_time']) ?></small>
                             </div>
                             <?php if ($conv['book_title']): ?>
-                                <p class="mb-1 small text-muted">Re: <?= htmlspecialchars($conv['book_title']) ?></p>
+                                <p class="mb-1 small text-muted"><i class="bi bi-book me-1"></i>Re: <?= htmlspecialchars($conv['book_title']) ?></p>
                             <?php endif; ?>
-                            <p class="mb-0 text-truncate"><?= htmlspecialchars($conv['last_message']) ?></p>
+                            <p class="mb-0 text-truncate"><i class="bi bi-chat-text me-1"></i><?= htmlspecialchars($conv['last_message']) ?></p>
                         </a>
                         <div class="px-3 py-2 border-bottom">
-                            <a href="<?= $replyUrl ?>" class="btn btn-sm btn-outline-primary">Reply</a>
+                            <a href="<?= $replyUrl ?>" class="btn btn-sm btn-outline-primary"><i class="bi bi-reply me-1"></i>Reply</a>
                         </div>
                     <?php endforeach; ?>
                 </div>

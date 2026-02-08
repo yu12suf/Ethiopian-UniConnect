@@ -181,7 +181,7 @@ SET NULL
 INSERT INTO users
     (full_name, email, password, department, phone, role, status)
 VALUES
-    ('Admin', 'admin@uniconnect.edu.et', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administration', '0911234567', 'admin', 'active')
+    ('Yusuf Kedir', 'admin@uniconnect.edu.et', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administration', '0911234567', 'admin', 'active')
 ON DUPLICATE KEY
 UPDATE email = email;
 
@@ -217,4 +217,19 @@ CREATE TABLE IF NOT EXISTS password_resets (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_token (token),
     INDEX idx_expires_at (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Platform Fees table
+CREATE TABLE IF NOT EXISTS platform_fees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL DEFAULT 10.00,
+    status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    proof_image VARCHAR(255) DEFAULT NULL,
+    admin_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -94,7 +94,22 @@ $userBooks = array_filter($book->getUserListings($currentUserId), function($b) {
                     <?php foreach ($conversation as $msg): ?>
                         <div class="mb-3 <?= $msg['sender_id'] == $currentUserId ? 'text-end' : 'text-start' ?>">
                             <div class="message-bubble <?= $msg['sender_id'] == $currentUserId ? 'message-sent' : 'message-received' ?> d-inline-block p-2 rounded position-relative">
-                                <small class="d-block text-muted mb-1"><?= htmlspecialchars($msg['sender_id'] == $currentUserId ? 'You' : $msg['sender_name']) ?> • <?= timeAgo($msg['created_at']) ?></small>
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <small class="text-muted mb-1 flex-grow-1"><?= htmlspecialchars($msg['sender_id'] == $currentUserId ? 'You' : $msg['sender_name']) ?> • <?= timeAgo($msg['created_at']) ?></small>
+                                    <div class="message-actions">
+                                        <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <?php if ($msg['sender_id'] == $currentUserId): ?>
+                                                <li><a class="dropdown-item text-dark" href="<?= site_url('views/dashboard/edit_message.php?message_id=' . intval($msg['id'])) ?>"><i class="bi bi-pencil"></i> Edit</a></li>
+                                                <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteMessageModal" data-form-id="deleteForm_<?= $msg['id'] ?>"><i class="bi bi-trash"></i> Delete</a></li>
+                                            <?php else: ?>
+                                                <li><a class="dropdown-item" href="#replyForm"><i class="bi bi-reply"></i> Reply</a></li>
+                                            <?php endif; ?>
+                                        </ul>
+                                    </div>
+                                </div>
                                 <?php if (trim($msg['message'])): ?>
                                     <div><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
                                 <?php endif; ?>
@@ -236,18 +251,10 @@ $userBooks = array_filter($book->getUserListings($currentUserId), function($b) {
                                     </div>
                                 <?php endif; ?>
                                 <?php if ($msg['sender_id'] == $currentUserId): ?>
-                                    <div class="mt-2">
-                                        <a href="<?= site_url('views/dashboard/edit_message.php?message_id=' . intval($msg['id'])) ?>" class="btn btn-sm btn-info" title="Edit">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <form method="POST" action="<?= site_url('views/dashboard/delete_message.php') ?>" style="display:inline-block;" id="deleteForm_<?= $msg['id'] ?>">
-                                            <input type="hidden" name="message_id" value="<?= intval($msg['id']) ?>">
-                                            <input type="hidden" name="other_user_id" value="<?= intval($otherUserId) ?>">
-                                            <button type="button" class="btn btn-sm btn-danger" title="Delete" data-bs-toggle="modal" data-bs-target="#deleteMessageModal" data-form-id="deleteForm_<?= $msg['id'] ?>">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <form method="POST" action="<?= site_url('views/dashboard/delete_message.php') ?>" style="display:none;" id="deleteForm_<?= $msg['id'] ?>">
+                                        <input type="hidden" name="message_id" value="<?= intval($msg['id']) ?>">
+                                        <input type="hidden" name="other_user_id" value="<?= intval($otherUserId) ?>">
+                                    </form>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -261,37 +268,39 @@ $userBooks = array_filter($book->getUserListings($currentUserId), function($b) {
         <?php endif; ?>
 
         <div class="card">
-            <div class="card-body">
-                <form method="POST" enctype="multipart/form-data" id="replyForm">
-                    <div class="mb-3">
-                        <label class="form-label">Attach Book (optional)</label>
-                        <select name="book_id" class="form-select">
-                            <option value="">No book attachment</option>
-                            <?php foreach($userBooks as $b): ?>
-                                <option value="<?= $b['id'] ?>" <?= isset($_GET['book_id']) && $_GET['book_id'] == $b['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($b['title']) ?> by <?= htmlspecialchars($b['author']) ?> (<?= ucfirst($b['exchange_type']) ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Attach File (optional)</label>
-                        <input type="file" name="attachment" class="form-control" accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.zip,.rar,.txt">
-                        <small class="text-muted">Supported: Images, Audio, Video, PDF, DOC/DOCX, ZIP, TXT (max 10MB)</small>
-                    </div>
-                    <div class="mb-3">
-                        <textarea name="message" class="form-control" rows="4" placeholder="Write your reply..." <?= empty($userBooks) ? 'required' : '' ?>></textarea>
-                        <?php if (!empty($userBooks)): ?>
-                            <small class="text-muted">Message is optional if attaching a book or file</small>
-                        <?php endif; ?>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Send Reply</button>
-                        <a href="<?= site_url('views/dashboard/messages.php') ?>" class="btn btn-outline-secondary">Cancel</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+             <div class="card-body">
+                 <form method="POST" enctype="multipart/form-data" id="replyForm">
+                     <div class="mb-3">
+                         <label class="form-label">Attach Book (optional)</label>
+                         <select name="book_id" class="form-select">
+                             <option value="">No book attachment</option>
+                             <?php foreach($userBooks as $b): ?>
+                                 <option value="<?= $b['id'] ?>" <?= isset($_GET['book_id']) && $_GET['book_id'] == $b['id'] ? 'selected' : '' ?>>
+                                     <?= htmlspecialchars($b['title']) ?> by <?= htmlspecialchars($b['author']) ?> (<?= ucfirst($b['exchange_type']) ?>)
+                                 </option>
+                             <?php endforeach; ?>
+                         </select>
+                     </div>
+                     <div class="mb-3">
+                         <div class="input-group">
+                             <button class="btn btn-outline-secondary" type="button" id="attachFileBtn" title="Attach File">
+                                 <i class="bi bi-paperclip"></i>
+                             </button>
+                             <input type="file" name="attachment" id="attachmentInput" class="d-none" accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.zip,.rar,.txt">
+                             <textarea name="message" class="form-control" rows="4" placeholder="Write your reply..." <?= empty($userBooks) ? 'required' : '' ?>></textarea>
+                         </div>
+                         <small class="text-muted">Supported: Images, Audio, Video, PDF, DOC/DOCX, ZIP, TXT (max 10MB)</small>
+                         <?php if (!empty($userBooks)): ?>
+                             <small class="text-muted d-block">Message is optional if attaching a book or file</small>
+                         <?php endif; ?>
+                     </div>
+                     <div class="d-flex gap-2">
+                         <button type="submit" class="btn btn-primary">Send Reply</button>
+                         <a href="<?= site_url('views/dashboard/messages.php') ?>" class="btn btn-outline-secondary">Cancel</a>
+                     </div>
+                 </form>
+             </div>
+         </div>
 
     </div>
 
@@ -379,6 +388,34 @@ $userBooks = array_filter($book->getUserListings($currentUserId), function($b) {
                 if (form) {
                     form.submit();
                 }
+            });
+        })();
+
+        // Handle attach file button
+        (function() {
+            const attachBtn = document.getElementById('attachFileBtn');
+            const fileInput = document.getElementById('attachmentInput');
+
+            if (attachBtn && fileInput) {
+                attachBtn.addEventListener('click', function() {
+                    fileInput.click();
+                });
+            }
+        })();
+
+        // Handle reply link
+        (function() {
+            const replyLinks = document.querySelectorAll('a[href="#replyForm"]');
+            const textarea = document.querySelector('textarea[name="message"]');
+
+            replyLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (textarea) {
+                        textarea.focus();
+                        textarea.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
             });
         })();
     </script>

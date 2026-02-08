@@ -23,9 +23,11 @@ class Book
          // Handle image upload (optional)
          $imagePath = null;
          if (!empty($imageFile) && isset($imageFile['error']) && $imageFile['error'] === UPLOAD_ERR_OK) {
-             $imagePath = $this->uploadImage($imageFile);
-             if (!$imagePath) {
-                 return ['success' => false, 'message' => 'Image upload failed'];
+             $uploadResult = $this->uploadImage($imageFile);
+             if (strpos($uploadResult, 'uploads/') === 0) {
+                 $imagePath = $uploadResult;
+             } else {
+                 return ['success' => false, 'message' => $uploadResult];
              }
          }
 
@@ -89,13 +91,13 @@ class Book
 
         // Check file size
         if ($file['size'] > MAX_FILE_SIZE) {
-            return false;
+            return 'Image file is too large. Maximum size is 5MB.';
         }
 
         // Validate file extension
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($extension, $allowedExtensions)) {
-            return false;
+            return 'Invalid file extension. Allowed: JPG, PNG, GIF.';
         }
 
         // Verify actual MIME type using finfo (not client-provided type)
@@ -104,7 +106,7 @@ class Book
         finfo_close($finfo);
 
         if (!in_array($mimeType, $allowedMimeTypes)) {
-            return false;
+            return 'Invalid file type. Only image files are allowed.';
         }
 
         // Create upload directory if needed
@@ -122,7 +124,7 @@ class Book
             return 'uploads/books/' . $filename;
         }
 
-        return false;
+        return 'Failed to upload image file.';
     }
 
     /**

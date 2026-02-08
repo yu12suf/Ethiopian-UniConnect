@@ -54,9 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Handle image upload (optional)
         $imagePath = $bookData['image_path']; // Keep existing image by default
         if (!empty($_FILES['image']) && isset($_FILES['image']['error']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $newImagePath = $book->uploadImage($_FILES['image']);
-            if ($newImagePath) {
-                $imagePath = $newImagePath;
+            $uploadResult = $book->uploadImage($_FILES['image']);
+            if (strpos($uploadResult, 'uploads/') === 0) {
+                $imagePath = $uploadResult;
                 // Delete old image if it exists and is different
                 if ($bookData['image_path'] && $bookData['image_path'] !== $imagePath) {
                     $oldImagePath = __DIR__ . '/../../' . $bookData['image_path'];
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             } else {
-                $errors[] = 'Image upload failed';
+                $errors[] = $uploadResult;
             }
         }
 
@@ -316,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <?php if ($bookData['image_path']): ?>
                                     <div class="mt-2">
                                         <small class="text-muted">Current image:</small><br>
-                                        <img src="<?= site_url($bookData['image_path']) ?>" alt="Current book image" style="max-width: 200px; max-height: 200px;" class="mt-1">
+                                        <img src="<?= site_url($bookData['image_path']) ?>?t=<?= time() ?>" alt="Current book image" style="max-width: 200px; max-height: 200px;" class="mt-1">
                                     </div>
                                 <?php endif; ?>
                             </div>

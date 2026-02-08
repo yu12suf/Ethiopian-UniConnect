@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <!-- Quick Links -->
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <h5><i class="bi bi-people"></i> User Management</h5>
@@ -130,12 +130,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card shadow-sm">
                     <div class="card-body">
                         <h5><i class="bi bi-graph-up"></i> Reports</h5>
                         <p class="text-muted">View detailed statistics and reports</p>
                         <a href="reports.php" class="btn btn-primary">View Reports</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5><i class="bi bi-credit-card"></i> Platform Fees</h5>
+                        <p class="text-muted">Review and approve platform fee payments</p>
+                        <a href="platform_fees.php" class="btn btn-primary">Manage Fees</a>
                     </div>
                 </div>
             </div>

@@ -2,12 +2,20 @@
 require_once '../../includes/init.php';
 requireLogin();
 
+// Prevent caching to ensure fresh data after updates
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 $user = new User();
 $request = new Request();
 
 $userId = $user->getCurrentUserId();
-$receivedRequests = $request->getReceivedRequests($userId);
-$sentRequests = $request->getSentRequests($userId);
+$statusFilter = $_GET['status'] ?? 'all';
+$receivedRequests = $request->getReceivedRequests($userId, $statusFilter);
+$sentRequests = $request->getSentRequests($userId, $statusFilter);
+$receivedCount = $request->getReceivedRequestsCount($userId);
+$sentCount = $request->getSentRequestsCount($userId);
 $db = Database::getInstance()->getConnection();
 
 // Handle status update
@@ -16,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     $status = $_POST['status'];
     $borrowDays = $_POST['borrow_days'] ?? null;
     $request->updateRequestStatus($requestId, $userId, $status, $borrowDays);
-    redirect('/views/dashboard/requests.php');
+    redirect('/views/dashboard/requests.php?t=' . time());
 }
 ?>
 <!DOCTYPE html>
@@ -37,15 +45,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'])) {
     <div class="container my-5">
         <h2 class="mb-4">Book Requests</h2>
 
+        <!-- Filter Form -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <form method="GET" class="d-flex gap-2">
+                    <label for="status" class="form-label mt-2">Filter by Status:</label>
+                    <select name="status" id="status" class="form-select" onchange="this.form.submit()">
+                        <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>All Requests</option>
+                        <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="accepted" <?= $statusFilter === 'accepted' ? 'selected' : '' ?>>Accepted</option>
+                        <option value="completed" <?= $statusFilter === 'completed' ? 'selected' : '' ?>>Completed</option>
+                        <option value="rejected" <?= $statusFilter === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                        <option value="cancelled" <?= $statusFilter === 'cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                    </select>
+                </form>
+            </div>
+        </div>
+
         <ul class="nav nav-tabs mb-4" role="tablist">
             <li class="nav-item">
                 <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#received">
-                    Received Requests <span class="badge bg-primary"><?= count($receivedRequests) ?></span>
+                    Received Requests <span class="badge bg-primary"><?= $receivedCount ?></span>
                 </button>
             </li>
             <li class="nav-item">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#sent">
-                    Sent Requests <span class="badge bg-info"><?= count($sentRequests) ?></span>
+                    Sent Requests <span class="badge bg-info"><?= $sentCount ?></span>
                 </button>
             </li>
         </ul>

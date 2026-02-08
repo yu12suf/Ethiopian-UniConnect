@@ -5,27 +5,30 @@ class PasswordReset {
     private $user;
 
     public function __construct() {
-        $this->db = DB::getInstance();
+        $this->db = Database::getInstance()->getConnection();
         $this->user = new User();
     }
 
     public function requestReset($email) {
-        $user_data = $this->db->get('users', ['email', '=', $email])->first();
+        $sql = "SELECT id FROM users WHERE email = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$email]);
+        $user_data = $stmt->fetch();
 
         if ($user_data) {
-            $user_id = $user_data->id;
+            $user_id = $user_data['id'];
             $token = bin2hex(random_bytes(16)); // Generate a 32-character token
             $expires = date('Y-m-d H:i:s', strtotime('+1 hour')); // Token expires in 1 hour
 
             // Delete any existing tokens for this user
-            $this->db->delete('password_resets', ['user_id', '=', $user_id]);
+            $sql = "DELETE FROM password_resets WHERE user_id = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$user_id]);
 
             // Store the new token
-            $this->db->insert('password_resets', [
-                'user_id' => $user_id,
-                'token' => $token,
-                'expires_at' => $expires
-            ]);
+            $sql = "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$user_id, $token, $expires]);
 
             // In a real application, you would send an email here.
             // For demonstration, we'll just return the reset link.
@@ -48,19 +51,26 @@ class PasswordReset {
     }
 
     public function resetPassword($token, $new_password) {
-        $reset_data = $this->db->get('password_resets', ['token', '=', $token])->first();
+        $sql = "SELECT id, user_id, expires_at FROM password_resets WHERE token = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$token]);
+        $reset_data = $stmt->fetch();
 
-        if ($reset_data && strtotime($reset_data->expires_at) > time()) {
-            $user_id = $reset_data->user_id;
+        if ($reset_data && strtotime($reset_data['expires_at']) > time()) {
+            $user_id = $reset_data['user_id'];
 
             // Hash the new password
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
 
             // Update user's password
-            $this->db->update('users', $user_id, ['password' => $hashed_password]);
+            $sql = "UPDATE users SET password = ? WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$hashed_password, $user_id]);
 
             // Invalidate the token
-            $this->db->delete('password_resets', ['id', '=', $reset_data->id]);
+            $sql = "DELETE FROM password_resets WHERE id = ?";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$reset_data['id']]);
 
             return ['success' => true, 'message' => 'Your password has been reset successfully.'];
         }
@@ -69,7 +79,10 @@ class PasswordReset {
     }
 
     public function validateToken($token) {
-        $reset_data = $this->db->get('password_resets', ['token', '=', $token])->first();
-        return ($reset_data && strtotime($reset_data->expires_at) > time());
+        $sql = "SELECT expires_at FROM password_resets WHERE token = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$token]);
+        $reset_data = $stmt->fetch();
+        return ($reset_data && strtotime($reset_data['expires_at']) > time());
     }
 }

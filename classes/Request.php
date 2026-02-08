@@ -76,38 +76,78 @@ class Request
     }
 
     /**
+     * Get received requests count for book owner
+     */
+    public function getReceivedRequestsCount($userId)
+    {
+        $sql = "SELECT COUNT(*) as count FROM requests r JOIN books b ON r.book_id = b.id WHERE b.user_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+
+    /**
+     * Get sent requests count for requester
+     */
+    public function getSentRequestsCount($userId)
+    {
+        $sql = "SELECT COUNT(*) as count FROM requests r WHERE r.requester_id = ?";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$userId]);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+
+    /**
      * Get received requests for book owner
      */
-    public function getReceivedRequests($userId)
+    public function getReceivedRequests($userId, $statusFilter = null)
     {
         $sql = "SELECT r.*, b.title as book_title, b.id as book_id, b.exchange_type, b.price,
         u.full_name as requester_name, u.email as requester_email, u.phone as requester_phone
         FROM requests r
         JOIN books b ON r.book_id = b.id
         JOIN users u ON r.requester_id = u.id
-        WHERE b.user_id = ?
-        ORDER BY r.created_at DESC";
+        WHERE b.user_id = ?";
+
+        $params = [$userId];
+
+        if ($statusFilter && $statusFilter !== 'all') {
+            $sql .= " AND r.status = ?";
+            $params[] = $statusFilter;
+        }
+
+        $sql .= " ORDER BY r.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$userId]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
     /**
      * Get sent requests for requester
      */
-    public function getSentRequests($userId)
+    public function getSentRequests($userId, $statusFilter = null)
     {
         $sql = "SELECT r.*, b.title as book_title, b.image_path, b.exchange_type, b.price,
         u.full_name as owner_name, u.email as owner_email, u.phone as owner_phone
         FROM requests r
         JOIN books b ON r.book_id = b.id
         JOIN users u ON b.user_id = u.id
-        WHERE r.requester_id = ?
-        ORDER BY r.created_at DESC";
+        WHERE r.requester_id = ?";
+
+        $params = [$userId];
+
+        if ($statusFilter && $statusFilter !== 'all') {
+            $sql .= " AND r.status = ?";
+            $params[] = $statusFilter;
+        }
+
+        $sql .= " ORDER BY r.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$userId]);
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 

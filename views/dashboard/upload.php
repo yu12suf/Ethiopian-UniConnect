@@ -4,58 +4,75 @@ requireLogin();
 
 $user = new User();
 $book = new Book();
+$platformFee = new PlatformFee();
 
 $errors = [];
 $success = '';
 
+// Check if user has paid platform fee
+$hasPaidFee = $platformFee->hasPaidFee($user->getCurrentUserId());
+$feeStatus = $platformFee->getUserFeeStatus($user->getCurrentUserId());
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'user_id' => $user->getCurrentUserId(),
-        'title' => sanitize($_POST['title']),
-        'author' => sanitize($_POST['author']),
-        'department' => sanitize($_POST['department']),
-        'course' => sanitize($_POST['course']),
-        'description' => sanitize($_POST['description']),
-        'condition' => $_POST['condition'],
-        'exchange_type' => $_POST['exchange_type'],
-        'price' => $_POST['price'] ?? null,
-        'payment_account_1_type' => $_POST['payment_account_1_type'] ?? null,
-        'payment_account_1_number' => $_POST['payment_account_1_number'] ?? null,
-        'payment_account_1_holder' => $_POST['payment_account_1_holder'] ?? null,
-        'payment_account_2_type' => $_POST['payment_account_2_type'] ?? null,
-        'payment_account_2_number' => $_POST['payment_account_2_number'] ?? null,
-        'payment_account_2_holder' => $_POST['payment_account_2_holder'] ?? null,
-        'payment_account_3_type' => $_POST['payment_account_3_type'] ?? null,
-        'payment_account_3_number' => $_POST['payment_account_3_number'] ?? null,
-        'payment_account_3_holder' => $_POST['payment_account_3_holder'] ?? null
-    ];
-
-    if (empty($data['title']) || empty($data['author'])) {
-        $errors[] = 'Title and author are required';
-    }
-
-    // Validate payment fields for 'buy' exchange type
-    if ($data['exchange_type'] === 'buy') {
-        $hasAtLeastOneAccount = false;
-        for ($i = 1; $i <= 3; $i++) {
-            if (!empty($data["payment_account_{$i}_type"]) && !empty($data["payment_account_{$i}_number"])) {
-                $hasAtLeastOneAccount = true;
-                break;
-            }
-        }
-        if (!$hasAtLeastOneAccount) {
-            $errors[] = 'At least one payment account is required for books for sale';
-        }
-    }
-
-    if (empty($errors)) {
-        $image = $_FILES['image'] ?? null;
-        $bookFile = $_FILES['book_file'] ?? null;
-        $result = $book->createListing($data, $image);
+    // Handle platform fee payment proof submission
+    if (isset($_FILES['proof_image'])) {
+        $result = $platformFee->submitPaymentProof($user->getCurrentUserId(), $_FILES['proof_image']);
         if ($result['success']) {
             $success = $result['message'];
         } else {
             $errors[] = $result['message'];
+        }
+    } elseif (!$hasPaidFee) {
+        $errors[] = 'You must pay the platform fee before uploading books.';
+    } else {
+        $data = [
+            'user_id' => $user->getCurrentUserId(),
+            'title' => sanitize($_POST['title']),
+            'author' => sanitize($_POST['author']),
+            'department' => sanitize($_POST['department']),
+            'course' => sanitize($_POST['course']),
+            'description' => sanitize($_POST['description']),
+            'condition' => $_POST['condition'],
+            'exchange_type' => $_POST['exchange_type'],
+            'price' => $_POST['price'] ?? null,
+            'payment_account_1_type' => $_POST['payment_account_1_type'] ?? null,
+            'payment_account_1_number' => $_POST['payment_account_1_number'] ?? null,
+            'payment_account_1_holder' => $_POST['payment_account_1_holder'] ?? null,
+            'payment_account_2_type' => $_POST['payment_account_2_type'] ?? null,
+            'payment_account_2_number' => $_POST['payment_account_2_number'] ?? null,
+            'payment_account_2_holder' => $_POST['payment_account_2_holder'] ?? null,
+            'payment_account_3_type' => $_POST['payment_account_3_type'] ?? null,
+            'payment_account_3_number' => $_POST['payment_account_3_number'] ?? null,
+            'payment_account_3_holder' => $_POST['payment_account_3_holder'] ?? null
+        ];
+
+        if (empty($data['title']) || empty($data['author'])) {
+            $errors[] = 'Title and author are required';
+        }
+
+        // Validate payment fields for 'buy' exchange type
+        if ($data['exchange_type'] === 'buy') {
+            $hasAtLeastOneAccount = false;
+            for ($i = 1; $i <= 3; $i++) {
+                if (!empty($data["payment_account_{$i}_type"]) && !empty($data["payment_account_{$i}_number"])) {
+                    $hasAtLeastOneAccount = true;
+                    break;
+                }
+            }
+            if (!$hasAtLeastOneAccount) {
+                $errors[] = 'At least one payment account is required for books for sale';
+            }
+        }
+
+        if (empty($errors)) {
+            $image = $_FILES['image'] ?? null;
+            $bookFile = $_FILES['book_file'] ?? null;
+            $result = $book->createListing($data, $image);
+            if ($result['success']) {
+                $success = $result['message'];
+            } else {
+                $errors[] = $result['message'];
+            }
         }
     }
 }
@@ -78,11 +95,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container my-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="card shadow">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0"><i class="bi bi-upload"></i> Upload Book</h4>
+                <?php if (!$hasPaidFee): ?>
+                    <!-- Platform Fee Payment Section -->
+                    <div class="card shadow border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h4 class="mb-0"><i class="bi bi-credit-card"></i> Platform Fee Required</h4>
+                        </div>
+                        <div class="card-body p-4">
+                            <div class="alert alert-info">
+                                <h5><i class="bi bi-info-circle"></i> Platform Fee: 10 ETB</h5>
+                                <p>To upload books on UniConnect, you need to pay a one-time platform fee of 10 ETB. This helps us maintain the platform and provide better services.</p>
+                                <p><strong>Payment Instructions:</strong></p>
+                                <ul>
+                                    <li>Transfer 10 ETB to: <strong>Commercial Bank of Ethiopia (CBE) - Account: 1000621876647 - Name: Yusuf Kedir</strong></li>
+                                    <li>Upload a screenshot of your completed transaction below</li>
+                                    <li>Wait for admin approval (usually within 24 hours)</li>
+                                </ul>
+                            </div>
+
+                            <?php if (!empty($errors)): ?>
+                                <div class="alert alert-danger">
+                                    <?php foreach ($errors as $error): ?>
+                                        <?= htmlspecialchars($error) ?><br>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($success): ?>
+                                <div class="alert alert-success">
+                                    <?= htmlspecialchars($success) ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($feeStatus && $feeStatus['status'] === 'pending'): ?>
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-clock"></i> Your payment proof has been submitted and is pending admin approval. Please check back later.
+                                </div>
+                            <?php elseif ($feeStatus && $feeStatus['status'] === 'rejected'): ?>
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-x-circle"></i> Your payment was rejected. Reason: <?= htmlspecialchars($feeStatus['admin_notes'] ?? 'No reason provided') ?>. Please submit a new proof.
+                                </div>
+                            <?php endif; ?>
+
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label class="form-label">Upload Payment Proof (Screenshot)</label>
+                                    <input type="file" name="proof_image" class="form-control" accept="image/*" required>
+                                    <small class="text-muted">Upload a clear screenshot showing the completed 10 ETB transfer</small>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Submit Payment Proof</button>
+                            </form>
+                        </div>
                     </div>
-                    <div class="card-body p-4">
+                <?php else: ?>
+                    <!-- Book Upload Section -->
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h4 class="mb-0"><i class="bi bi-upload"></i> Upload Book</h4>
+                        </div>
+                        <div class="card-body p-4">
                         <?php if (!empty($errors)): ?>
                             <div class="alert alert-danger">
                                 <?php foreach ($errors as $error): ?>
@@ -304,10 +375,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
+                <?php endif; ?>
 
     <?php include '../../includes/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php if ($hasPaidFee): ?>
     <script>
         document.getElementById('exchangeType').addEventListener('change', function() {
             const priceField = document.getElementById('priceField');
@@ -321,6 +394,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
     </script>
+    <?php endif; ?>
 </body>
 
 </html>

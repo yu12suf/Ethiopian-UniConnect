@@ -48,7 +48,7 @@ try {
     }
     
     echo "✓ Database tables created successfully\n";
-    echo "✓ Default admin user created (email: admin@uniconnect.edu.et, password: admin123)\n\n";
+    echo "✓ Default admin user created (Yusuf Kedir - email: admin@uniconnect.edu.et, password: admin123)\n\n";
     echo "=== Setup Complete! ===\n";
     echo "You can now access the application at http://localhost:5000\n";
     
