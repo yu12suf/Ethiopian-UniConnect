@@ -33,6 +33,7 @@ $pendingPayments = $platformFee->getPendingPayments();
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,6 +42,7 @@ $pendingPayments = $platformFee->getPendingPayments();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../../assets/css/style.css">
 </head>
+
 <body>
     <?php include '../../includes/navbar.php'; ?>
 
@@ -152,7 +154,7 @@ $pendingPayments = $platformFee->getPendingPayments();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const actionModal = document.getElementById('actionModal');
-        actionModal.addEventListener('show.bs.modal', function (event) {
+        actionModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const action = button.getAttribute('data-action');
             const paymentId = button.getAttribute('data-payment-id');
@@ -179,4 +181,5 @@ $pendingPayments = $platformFee->getPendingPayments();
         });
     </script>
 </body>
+
 </html>

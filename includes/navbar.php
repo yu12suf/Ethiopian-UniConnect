@@ -63,6 +63,9 @@
                         <li class="nav-item">
                             <a class="nav-link" href="<?= site_url('views/admin/index.php') ?>">Admin Panel</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?= site_url('views/admin/platform_fees.php') ?>">Platform Fees</a>
+                        </li>
                     <?php endif; ?>
 
                     <li class="nav-item dropdown">

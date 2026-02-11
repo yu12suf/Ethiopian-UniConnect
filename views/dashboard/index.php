@@ -94,8 +94,12 @@ $sentRequests = $request->getSentRequests($userId);
                                             </span>
                                         </td>
                                         <td>
-                                            <a href="edit_book.php?id=<?= $listing['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete(<?= $listing['id'] ?>, '<?= htmlspecialchars(addslashes($listing['title'])) ?>')">Delete</button>
+                                            <a href="edit_book.php?id=<?= $listing['id'] ?>" class="btn btn-sm btn-outline-primary" title="Edit Book">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete(<?= $listing['id'] ?>, '<?= htmlspecialchars(addslashes($listing['title'])) ?>')" title="Delete Book">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
