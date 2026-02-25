@@ -1,5 +1,7 @@
 # UniConnect - University Book & Material Exchange Platform
 
+[🌐 Project Home / Live Demo](https://ethiouniconnect.iceiy.com/)
+
 A professional PHP-based web application for Ethiopian university students to exchange, borrow, donate, and sell academic books and materials.
 
 ## Project Overview
