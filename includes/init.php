@@ -148,13 +148,20 @@ function formatDate($date)
 function timeAgo($datetime)
 {
     $timestamp = strtotime($datetime);
+    if ($timestamp === false) {
+        return $datetime; // Return original string if parsing fails
+    }
+
     $diff = time() - $timestamp;
 
-    // If timestamp is in the future due to small clock/timezone differences,
-    // treat the difference as positive so we display a human-friendly "ago"
-    // value instead of always showing "just now".
+    // If timestamp is in the future, handle it gracefully.
+    // For small differences (clock skew), show relative time. For large ones, show the date.
     if ($diff < 0) {
-        $diff = abs($diff);
+        if (abs($diff) < 3600) { // Less than an hour in the future
+            $diff = abs($diff); // Treat as a positive difference for display
+        } else {
+            return date('M j, Y', $timestamp); // It's significantly in the future, show the date
+        }
     }
 
     if ($diff < 60) {

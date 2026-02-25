@@ -1,0 +1,205 @@
+/*
+ * UniConnect Professional Theme
+ * -----------------------------
+ * This file provides a professional and consistent color scheme and style enhancements.
+ * Include this file in your HTML head AFTER the main Bootstrap CSS file.
+ */
+
+/* 1. Color Palette & Root Variables */
+:root {
+    --uniconnect-primary: #0d47a1;
+    /* A deep, academic blue */
+    --uniconnect-primary-rgb: 13, 71, 161;
+    --uniconnect-secondary: #1565c0;
+    /* A slightly lighter blue for accents */
+    --uniconnect-secondary-rgb: 21, 101, 192;
+    --uniconnect-accent: #ffab40;
+    /* A warm, inviting orange/gold for calls-to-action */
+    --uniconnect-light: #f5f7fa;
+    /* A soft, off-white background */
+    --uniconnect-dark: #263238;
+    /* A dark slate for primary text */
+    --uniconnect-muted: #546e7a;
+    /* A muted gray for secondary text */
+    --uniconnect-border: #cfd8dc;
+    /* A light border color */
+    --uniconnect-success: #2e7d32;
+    --uniconnect-danger: #c62828;
+    --uniconnect-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --uniconnect-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* 2. Global Styles */
+body {
+    background-color: var(--uniconnect-dark);
+    color: var(--uniconnect-dark);
+    font-family: 'Poppins', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--uniconnect-primary);
+    font-weight: 600;
+}
+
+a {
+    color: var(--uniconnect-secondary);
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: var(--uniconnect-primary);
+    text-decoration: none;
+}
+
+/* 3. Bootstrap Component Overrides */
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--uniconnect-primary);
+    border-color: var(--uniconnect-primary);
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--uniconnect-secondary);
+    border-color: var(--uniconnect-secondary);
+    box-shadow: var(--uniconnect-shadow-hover);
+}
+
+.btn-secondary {
+    background-color: var(--uniconnect-muted);
+    border-color: var(--uniconnect-muted);
+    font-weight: 500;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus {
+    background-color: var(--uniconnect-dark);
+    border-color: var(--uniconnect-dark);
+}
+
+.btn-accent {
+    background-color: var(--uniconnect-accent);
+    border-color: var(--uniconnect-accent);
+    color: var(--uniconnect-dark);
+    font-weight: 600;
+}
+
+.btn-accent:hover,
+.btn-accent:focus {
+    background-color: #ffc971;
+    /* Lighter accent */
+    border-color: #ffc971;
+    color: var(--uniconnect-dark);
+}
+
+/* Navbar */
+.navbar {
+    background-color: #ffffff;
+    box-shadow: var(--uniconnect-shadow);
+}
+
+.navbar .navbar-brand {
+    color: var(--uniconnect-primary);
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.navbar .nav-link {
+    color: var(--uniconnect-muted);
+    font-weight: 500;
+}
+
+.navbar .nav-link.active,
+.navbar .nav-link:hover {
+    color: var(--uniconnect-primary);
+}
+
+/* Cards */
+.card {
+    border: 1px solid var(--uniconnect-border);
+    border-radius: 8px;
+    box-shadow: var(--uniconnect-shadow);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--uniconnect-shadow-hover);
+    transform: translateY(-3px);
+}
+
+.card-header {
+    background-color: var(--uniconnect-light);
+    border-bottom: 1px solid var(--uniconnect-border);
+    font-weight: 600;
+    color: var(--uniconnect-primary);
+}
+
+/* Forms */
+.form-control {
+    border: 1px solid var(--uniconnect-border);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--uniconnect-secondary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--uniconnect-primary-rgb), 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--uniconnect-muted);
+}
+
+/* 4. Custom Utility & Page-Specific Styles */
+
+/* Auth Pages (Login, Register) */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--uniconnect-primary), var(--uniconnect-secondary));
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 450px;
+    padding: 2rem;
+}
+
+/* Dashboard & Content Sections */
+.section-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--uniconnect-border);
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+/* Book Card Specifics */
+.book-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--uniconnect-dark);
+}
+
+.book-card .card-text {
+    color: var(--uniconnect-muted);
+    font-size: 0.9rem;
+}
+
+.book-card .badge {
+    font-size: 0.8rem;
+}
